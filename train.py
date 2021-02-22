@@ -363,6 +363,239 @@ def setup_training_loop_kwargs(
 
 #----------------------------------------------------------------------------
 
+def setup_training_loop_encoder_kwargs(
+    # General options (not included in desc).
+    gpus       = None, # Number of GPUs: <int>, default = 1 gpu
+    snap       = None, # Snapshot interval: <int>, default = 50 ticks
+    seed       = None, # Random seed: <int>, default = 0
+
+    # Dataset.
+    data       = None, # Training dataset (required): <path>
+    cond       = None, # Train conditional model based on dataset labels: <bool>, default = False
+    subset     = None, # Train with only N images: <int>, default = all
+    mirror     = None, # Augment dataset with x-flips: <bool>, default = False
+
+    # Base config.
+    cfg        = None, # Base config: 'auto' (default), 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar'
+    kimg       = None, # Override training duration: <int>
+    batch      = None, # Override batch size: <int>
+
+    # Transfer learning.
+    resume     = None, # Load previous network: 'noresume' (default), 'ffhq256', 'ffhq512', 'ffhq1024', 'celebahq256', 'lsundog256', <file>, <url>
+
+    # Performance options (not included in desc).
+    fp32       = None, # Disable mixed-precision training: <bool>, default = False
+    nhwc       = None, # Use NHWC memory format with FP16: <bool>, default = False
+    allow_tf32 = None, # Allow PyTorch to use TF32 for matmul and convolutions: <bool>, default = False
+    nobench    = None, # Disable cuDNN benchmarking: <bool>, default = False
+    workers    = None, # Override number of DataLoader workers: <int>, default = 3
+    encoder_type = None
+):
+    args = dnnlib.EasyDict()
+
+    # ------------------------------------------
+    # General options: gpus, snap, metrics, seed
+    # ------------------------------------------
+
+    if gpus is None:
+        gpus = 1
+    assert isinstance(gpus, int)
+    if not (gpus >= 1 and gpus & (gpus - 1) == 0):
+        raise UserError('--gpus must be a power of two')
+    args.num_gpus = gpus
+
+    if snap is None:
+        snap = 50
+    assert isinstance(snap, int)
+    if snap < 1:
+        raise UserError('--snap must be at least 1')
+    args.image_snapshot_ticks = snap
+    args.network_snapshot_ticks = snap
+
+
+    if seed is None:
+        seed = 0
+    assert isinstance(seed, int)
+    args.random_seed = seed
+
+    # -----------------------------------
+    # Dataset: data, cond, subset, mirror
+    # -----------------------------------
+
+    assert data is not None
+    assert isinstance(data, str)
+    args.training_set_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False)
+    args.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, num_workers=3, prefetch_factor=2)
+    try:
+        training_set = dnnlib.util.construct_class_by_name(**args.training_set_kwargs) # subclass of training.dataset.Dataset
+        args.training_set_kwargs.resolution = training_set.resolution # be explicit about resolution
+        args.training_set_kwargs.use_labels = training_set.has_labels # be explicit about labels
+        args.training_set_kwargs.max_size = len(training_set) # be explicit about dataset size
+        desc = training_set.name
+        del training_set # conserve memory
+    except IOError as err:
+        raise UserError(f'--data: {err}')
+
+    if cond is None:
+        cond = False
+    assert isinstance(cond, bool)
+    if cond:
+        if not args.training_set_kwargs.use_labels:
+            raise UserError('--cond=True requires labels specified in dataset.json')
+        desc += '-cond'
+    else:
+        args.training_set_kwargs.use_labels = False
+
+    if subset is not None:
+        assert isinstance(subset, int)
+        if not 1 <= subset <= args.training_set_kwargs.max_size:
+            raise UserError(f'--subset must be between 1 and {args.training_set_kwargs.max_size}')
+        desc += f'-subset{subset}'
+        if subset < args.training_set_kwargs.max_size:
+            args.training_set_kwargs.max_size = subset
+            args.training_set_kwargs.random_seed = args.random_seed
+
+    if mirror is None:
+        mirror = False
+    assert isinstance(mirror, bool)
+    if mirror:
+        desc += '-mirror'
+        args.training_set_kwargs.xflip = True
+
+    # ------------------------------------
+    # Base config: cfg, gamma, kimg, batch
+    # ------------------------------------
+
+    if cfg is None:
+        cfg = 'auto'
+    assert isinstance(cfg, str)
+    desc += f'-{cfg}'
+
+    cfg_specs = {
+        'auto':      dict(ref_gpus=-1, kimg=25000,  mb=-1, mbstd=-1, fmaps=-1,  lrate=-1,     gamma=-1,   ema=-1,  ramp=0.05, map=2), # Populated dynamically based on resolution and GPU count.
+        'stylegan2': dict(ref_gpus=8,  kimg=25000,  mb=32, mbstd=4,  fmaps=1,   lrate=0.002,  gamma=10,   ema=10,  ramp=None, map=8), # Uses mixed-precision, unlike the original StyleGAN2.
+        'paper256':  dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=0.5, lrate=0.0025, gamma=1,    ema=20,  ramp=None, map=8),
+        'paper512':  dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=1,   lrate=0.0025, gamma=0.5,  ema=20,  ramp=None, map=8),
+        'paper1024': dict(ref_gpus=8,  kimg=25000,  mb=32, mbstd=4,  fmaps=1,   lrate=0.002,  gamma=2,    ema=10,  ramp=None, map=8),
+        'cifar':     dict(ref_gpus=2,  kimg=100000, mb=64, mbstd=32, fmaps=1,   lrate=0.0025, gamma=0.01, ema=500, ramp=0.05, map=2),
+    }
+
+    assert cfg in cfg_specs
+    spec = dnnlib.EasyDict(cfg_specs[cfg])
+    if cfg == 'auto':
+        desc += f'{gpus:d}'
+        spec.ref_gpus = gpus
+        res = args.training_set_kwargs.resolution
+        spec.mb = max(min(gpus * min(4096 // res, 32), 64), gpus) # keep gpu memory consumption at bay
+        spec.mbstd = min(spec.mb // gpus, 4) # other hyperparams behave more predictably if mbstd group size remains fixed
+        spec.fmaps = 1 if res >= 512 else 0.5
+        spec.lrate = 0.002 if res >= 1024 else 0.0025
+        spec.gamma = 0.0002 * (res ** 2) / spec.mb # heuristic formula
+        spec.ema = spec.mb * 10 / 32
+
+    args.G_kwargs = dnnlib.EasyDict(class_name='training.networks.Generator', z_dim=512, w_dim=512, mapping_kwargs=dnnlib.EasyDict(), synthesis_kwargs=dnnlib.EasyDict())
+    args.G_kwargs.synthesis_kwargs.channel_base = int(spec.fmaps * 32768)
+    args.G_kwargs.synthesis_kwargs.channel_max = 512
+    args.G_kwargs.mapping_kwargs.num_layers = spec.map
+    args.G_kwargs.synthesis_kwargs.num_fp16_res = 4 # enable mixed-precision training
+    args.G_kwargs.synthesis_kwargs.conv_clamp = 256 # clamp activations to avoid float16 overflow
+    args.G_kwargs.synthesis_kwargs.use_noise = False
+    
+    args.E_kwargs =  dnnlib.EasyDict(class_name='training.psp.pSp', encoder_type=encoder_type)
+    
+    args.E_opt_kwargs = dnnlib.EasyDict(class_name='torch.optim.Adam', lr=spec.lrate, betas=[0,0.99], eps=1e-8)
+    args.loss_kwargs = dnnlib.EasyDict(class_name='training.loss.PSPLoss')
+    
+
+    args.total_kimg = spec.kimg
+    args.batch_size = spec.mb
+    args.batch_gpu = spec.mb // spec.ref_gpus
+    args.ema_kimg = spec.ema
+    args.ema_rampup = spec.ramp
+    
+
+    if kimg is not None:
+        assert isinstance(kimg, int)
+        if not kimg >= 1:
+            raise UserError('--kimg must be at least 1')
+        desc += f'-kimg{kimg:d}'
+        args.total_kimg = kimg
+
+    if batch is not None:
+        assert isinstance(batch, int)
+        if not (batch >= 1 and batch % gpus == 0):
+            raise UserError('--batch must be at least 1 and divisible by --gpus')
+        desc += f'-batch{batch}'
+        args.batch_size = batch
+        args.batch_gpu = batch // gpus
+
+    # ----------------------------------
+    # Transfer learning: resume, freezed
+    # ----------------------------------
+
+    resume_specs = {
+        'ffhq256':     'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/ffhq-res256-mirror-paper256-noaug.pkl',
+        'ffhq512':     'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/ffhq-res512-mirror-stylegan2-noaug.pkl',
+        'ffhq1024':    'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/ffhq-res1024-mirror-stylegan2-noaug.pkl',
+        'celebahq256': 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/celebahq-res256-mirror-paper256-kimg100000-ada-target0.5.pkl',
+        'lsundog256':  'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/lsundog-res256-paper256-kimg100000-noaug.pkl',
+    }
+
+    assert resume is None or isinstance(resume, str)
+    if resume is None:
+        resume = 'noresume'
+    elif resume == 'noresume':
+        desc += '-noresume'
+    elif resume in resume_specs:
+        desc += f'-resume{resume}'
+        args.resume_pkl = resume_specs[resume] # predefined url
+    else:
+        desc += '-resumecustom'
+        args.resume_pkl = resume # custom path or url
+
+    if resume != 'noresume':
+        args.ada_kimg = 100 # make ADA react faster at the beginning
+        args.ema_rampup = None # disable EMA rampup
+
+    # -------------------------------------------------
+    # Performance options: fp32, nhwc, nobench, workers
+    # -------------------------------------------------
+
+    if fp32 is None:
+        fp32 = False
+    assert isinstance(fp32, bool)
+    if fp32:
+        args.G_kwargs.synthesis_kwargs.num_fp16_res = args.D_kwargs.num_fp16_res = 0
+        args.G_kwargs.synthesis_kwargs.conv_clamp = args.D_kwargs.conv_clamp = None
+
+    if nhwc is None:
+        nhwc = False
+    assert isinstance(nhwc, bool)
+    if nhwc:
+        args.G_kwargs.synthesis_kwargs.fp16_channels_last = args.D_kwargs.block_kwargs.fp16_channels_last = True
+
+    if nobench is None:
+        nobench = False
+    assert isinstance(nobench, bool)
+    if nobench:
+        args.cudnn_benchmark = False
+
+    if allow_tf32 is None:
+        allow_tf32 = False
+    assert isinstance(allow_tf32, bool)
+    if allow_tf32:
+        args.allow_tf32 = True
+
+    if workers is not None:
+        assert isinstance(workers, int)
+        if not workers >= 1:
+            raise UserError('--workers must be at least 1')
+        args.data_loader_kwargs.num_workers = workers
+
+    return desc, args
+
+#----------------------------------------------------------------------------
+
 def subprocess_fn(rank, args, temp_dir):
     dnnlib.util.Logger(file_name=os.path.join(args.run_dir, 'log.txt'), file_mode='a', should_flush=True)
 
@@ -438,6 +671,8 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--nobench', help='Disable cuDNN benchmarking', type=bool, metavar='BOOL')
 @click.option('--allow-tf32', help='Allow PyTorch to use TF32 internally', type=bool, metavar='BOOL')
 @click.option('--workers', help='Override number of DataLoader workers', type=int, metavar='INT')
+@click.option('--encode_mode', help='Train encoder instead of the GAN', type=bool, metavar='BOOL')
+@click.option('--encode_type', help='Encoder type [default: gradual]', type=click.Choice(['gradual', 'w', 'w+']))
 
 def main(ctx, outdir, dry_run, **config_kwargs):
     """Train a GAN using the techniques described in the paper
@@ -487,7 +722,10 @@ def main(ctx, outdir, dry_run, **config_kwargs):
 
     # Setup training options.
     try:
-        run_desc, args = setup_training_loop_kwargs(**config_kwargs)
+        if not args.encode_mode:
+            run_desc, args = setup_training_loop_kwargs(**config_kwargs)
+        else:
+            run_desc, args = setup_training_loop_encoder_kwargs(**config_kwargs)
     except UserError as err:
         ctx.fail(err)
 

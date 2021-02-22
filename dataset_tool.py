@@ -241,7 +241,7 @@ def make_transform(
         canvas = np.zeros([width, width, 3], dtype=np.uint8)
         canvas[(width - height) // 2 : (width + height) // 2, :] = img
         return canvas
-        
+
     def pad(width, height, img):
         img = PIL.Image.fromarray(img, 'RGB')
         img = img.resize((width, height), resample)
@@ -455,6 +455,7 @@ def convert_dataset(
         img.save(image_bits, format='png', compress_level=0, optimize=False)
         save_bytes(os.path.join(archive_root_dir, archive_fname), image_bits.getbuffer())
         labels.append([archive_fname, image['label']] if image['label'] is not None else None)
+        print([archive_fname, image['label']])
 
     metadata = {
         'labels': labels if all(x is not None for x in labels) else None

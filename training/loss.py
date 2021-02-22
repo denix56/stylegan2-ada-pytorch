@@ -8,9 +8,11 @@
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch_utils import training_stats
 from torch_utils import misc
 from torch_utils.ops import conv2d_gradfix
+import lpips
 
 #----------------------------------------------------------------------------
 
@@ -129,5 +131,41 @@ class StyleGAN2Loss(Loss):
 
             with torch.autograd.profiler.record_function(name + '_backward'):
                 (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain).backward()
+
+#----------------------------------------------------------------------------
+
+
+class PSPLoss(Loss):
+    def __init__(self, device, G_mapping, G_synthesis, E):
+        super().__init__()
+        self.device = device
+        self.G_mapping = G_mapping
+        self.G_synthesis = G_synthesis
+        self.E = E
+        
+        lpips_loss = lpips.LPIPS(net='vgg')
+        mse_loss = nn.MSELoss()
+
+    def run_G(self, z, c, sync):
+        with misc.ddp_sync(self.G_mapping, sync):
+            ws = self.G_mapping(z, c)
+        with misc.ddp_sync(self.G_synthesis, sync):
+            img = self.G_synthesis(ws)
+        return img, ws
+
+    def run_E(self, img, c, sync):
+        with misc.ddp_sync(self.D, sync):
+            codes = self.E(img, c)
+        return codes
+
+    def accumulate_gradients(self, phase, real_img, real_c, sync):
+    
+        with torch.autograd.profiler.record_function('Emain_forward'):
+            codes = self.run_E(real_img, real_c, sync=sync)
+            gen_img, _gen_ws = self.run_G(codes, gen_c, sync=sync)
+            loss = mse_loss(gen_img, real_img) + lpips_loss(gen_img, real_img)
+            training_stats.report('Loss/E/loss', loss)
+        with torch.autograd.profiler.record_function('Emain_backward'):
+            loss.backward()
 
 #----------------------------------------------------------------------------
