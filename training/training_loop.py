@@ -563,8 +563,7 @@ def training_loop_encoder(
             phase_real_c = phase_real_c.to(device).split(batch_gpu)
 
         # Execute training phases.
-        for phase in zip(phases):
-            print(phase)
+        for phase in phases:
             if batch_idx % phase.interval != 0:
                 continue
 
