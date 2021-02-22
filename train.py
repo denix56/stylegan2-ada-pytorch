@@ -367,6 +367,7 @@ def setup_training_loop_encoder_kwargs(
     # General options (not included in desc).
     gpus       = None, # Number of GPUs: <int>, default = 1 gpu
     snap       = None, # Snapshot interval: <int>, default = 50 ticks
+    img_snap   = None,
     seed       = None, # Random seed: <int>, default = 0
 
     # Dataset.
@@ -389,7 +390,8 @@ def setup_training_loop_encoder_kwargs(
     allow_tf32 = None, # Allow PyTorch to use TF32 for matmul and convolutions: <bool>, default = False
     nobench    = None, # Disable cuDNN benchmarking: <bool>, default = False
     workers    = None, # Override number of DataLoader workers: <int>, default = 3
-    encoder_type = None
+    encoder_type = None,
+    **kwargs
 ):
     args = dnnlib.EasyDict()
 
@@ -411,6 +413,9 @@ def setup_training_loop_encoder_kwargs(
         raise UserError('--snap must be at least 1')
     args.image_snapshot_ticks = snap
     args.network_snapshot_ticks = snap
+    
+    if encoder_type is None:
+        encoder_type = 'gradual'
 
 
     if seed is None:
@@ -478,6 +483,7 @@ def setup_training_loop_encoder_kwargs(
         'paper512':  dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=1,   lrate=0.0025, gamma=0.5,  ema=20,  ramp=None, map=8),
         'paper1024': dict(ref_gpus=8,  kimg=25000,  mb=32, mbstd=4,  fmaps=1,   lrate=0.002,  gamma=2,    ema=10,  ramp=None, map=8),
         'cifar':     dict(ref_gpus=2,  kimg=100000, mb=64, mbstd=32, fmaps=1,   lrate=0.0025, gamma=0.01, ema=500, ramp=0.05, map=2),
+        'custom':    dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=1,   lrate=0.002,  gamma=10,   ema=10,  ramp=None, map=8),
     }
 
     assert cfg in cfg_specs
@@ -596,7 +602,7 @@ def setup_training_loop_encoder_kwargs(
 
 #----------------------------------------------------------------------------
 
-def subprocess_fn(rank, args, temp_dir):
+def subprocess_fn(rank, args, temp_dir, encoder_mode):
     dnnlib.util.Logger(file_name=os.path.join(args.run_dir, 'log.txt'), file_mode='a', should_flush=True)
 
     # Init torch.distributed.
@@ -616,7 +622,10 @@ def subprocess_fn(rank, args, temp_dir):
         custom_ops.verbosity = 'none'
 
     # Execute training loop.
-    training_loop.training_loop(rank=rank, **args)
+    if encoder_mode:
+        training_loop.training_loop_encoder(rank=rank, **args)
+    else:
+        training_loop.training_loop(rank=rank, **args)
 
 #----------------------------------------------------------------------------
 
@@ -671,10 +680,10 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--nobench', help='Disable cuDNN benchmarking', type=bool, metavar='BOOL')
 @click.option('--allow-tf32', help='Allow PyTorch to use TF32 internally', type=bool, metavar='BOOL')
 @click.option('--workers', help='Override number of DataLoader workers', type=int, metavar='INT')
-@click.option('--encode_mode', help='Train encoder instead of the GAN', type=bool, metavar='BOOL')
-@click.option('--encode_type', help='Encoder type [default: gradual]', type=click.Choice(['gradual', 'w', 'w+']))
+@click.option('--encoder_mode', help='Train encoder instead of the GAN', type=bool, metavar='BOOL')
+@click.option('--encoder_type', help='Encoder type [default: gradual]', type=click.Choice(['gradual', 'w', 'w+']))
 
-def main(ctx, outdir, dry_run, **config_kwargs):
+def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
     """Train a GAN using the techniques described in the paper
     "Training Generative Adversarial Networks with Limited Data".
 
@@ -719,10 +728,10 @@ def main(ctx, outdir, dry_run, **config_kwargs):
       <PATH or URL>  Custom network pickle.
     """
     dnnlib.util.Logger(should_flush=True)
-
+    print(config_kwargs)
     # Setup training options.
     try:
-        if not args.encode_mode:
+        if not encoder_mode:
             run_desc, args = setup_training_loop_kwargs(**config_kwargs)
         else:
             run_desc, args = setup_training_loop_encoder_kwargs(**config_kwargs)
@@ -770,9 +779,9 @@ def main(ctx, outdir, dry_run, **config_kwargs):
     torch.multiprocessing.set_start_method('spawn')
     with tempfile.TemporaryDirectory() as temp_dir:
         if args.num_gpus == 1:
-            subprocess_fn(rank=0, args=args, temp_dir=temp_dir)
+            subprocess_fn(rank=0, args=args, temp_dir=temp_dir, encoder_mode=encoder_mode)
         else:
-            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir), nprocs=args.num_gpus)
+            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode), nprocs=args.num_gpus)
 
 #----------------------------------------------------------------------------
 
