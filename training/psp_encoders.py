@@ -2,10 +2,10 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.nn import Linear, Conv2d, BatchNorm2d, PReLU, Sequential, Module
+from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module
 
-from models.encoders.helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE
-from models.stylegan2.model import EqualLinear
+from helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE
+from networks import FullyConnectedLayer
 
 
 class GradualStyleBlock(Module):
@@ -16,14 +16,14 @@ class GradualStyleBlock(Module):
         num_pools = int(np.log2(spatial))
         modules = []
         modules += [Conv2d(in_c, out_c, kernel_size=3, stride=2, padding=1),
-                    nn.LeakyReLU()]
+                    nn.LeakyReLU(inplace=True)]
         for i in range(num_pools - 1):
             modules += [
                 Conv2d(out_c, out_c, kernel_size=3, stride=2, padding=1),
-                nn.LeakyReLU()
+                nn.LeakyReLU(inplace=True)
             ]
         self.convs = nn.Sequential(*modules)
-        self.linear = EqualLinear(out_c, out_c, lr_mul=1)
+        self.linear = FullyConnectedLayer(out_c, out_c)
 
     def forward(self, x):
         x = self.convs(x)
@@ -43,7 +43,7 @@ class GradualStyleEncoder(Module):
         elif mode == 'ir_se':
             unit_module = bottleneck_IR_SE
         self.input_layer = Sequential(Conv2d(opts.input_nc, 64, (3, 3), 1, 1, bias=False),
-                                      BatchNorm2d(64),
+                                      InstanceNorm2d(64),
                                       PReLU(64))
         modules = []
         for block in blocks:
