@@ -515,7 +515,7 @@ def training_loop_encoder(
         print('Setting up training phases...')
     loss = dnnlib.util.construct_class_by_name(device=device, **ddp_modules, **loss_kwargs) # subclass of training.loss.Loss
     phases = []
-    for name, module, opt_kwargs, reg_interval in [('E', E, E_opt_kwargs)]:
+    for name, module, opt_kwargs in [('E', E, E_opt_kwargs)]:
         opt = dnnlib.util.construct_class_by_name(params=module.parameters(), **opt_kwargs) # subclass of torch.optim.Optimizer
         phases += [dnnlib.EasyDict(name=name+'main', module=module, opt=opt, interval=1)]
     for phase in phases:
