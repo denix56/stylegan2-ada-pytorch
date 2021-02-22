@@ -491,6 +491,7 @@ def training_loop_encoder(
         z = torch.empty([batch_gpu, G.z_dim], device=device)
         c = torch.empty([batch_gpu, G.c_dim], device=device)
         img = misc.print_module_summary(G, [z, c])
+        codes = misc.print_module_summary(E, [img, c])
         # TODO: add for encoder
 
     # Setup augmentation.
