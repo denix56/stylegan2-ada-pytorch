@@ -1,6 +1,5 @@
-import torch
 from torch import nn
-import psp_encoders
+from . import psp_encoders
 
 
 def get_keys(d, name):
