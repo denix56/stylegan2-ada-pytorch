@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module
 
-from helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE
-from networks import FullyConnectedLayer
+from .helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE
+from .networks import FullyConnectedLayer
 
 
 class GradualStyleBlock(Module):
