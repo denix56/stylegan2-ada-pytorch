@@ -564,6 +564,7 @@ def training_loop_encoder(
 
         # Execute training phases.
         for phase in zip(phases):
+            print(phase)
             if batch_idx % phase.interval != 0:
                 continue
 
