@@ -21,11 +21,11 @@ class pSp(nn.Module):
         # Load weights if needed
 
     def set_encoder(self):
-        if self.encoder_type == 'GradualStyleEncoder':
+        if self.encoder_type == 'gradual':
             encoder = psp_encoders.GradualStyleEncoder(50, 'ir_se', input_nc=self.img_channels)
-        elif self.encoder_type == 'BackboneEncoderUsingLastLayerIntoW':
+        elif self.encoder_type == 'w':
             encoder = psp_encoders.BackboneEncoderUsingLastLayerIntoW(50, 'ir_se', input_nc=self.img_channels)
-        elif self.encoder_type == 'BackboneEncoderUsingLastLayerIntoWPlus':
+        elif self.encoder_type == 'w+':
             encoder = psp_encoders.BackboneEncoderUsingLastLayerIntoWPlus(50, 'ir_se', input_nc=self.img_channels)
         else:
             raise Exception('{} is not a valid encoders'.format(self.encoder_type))
