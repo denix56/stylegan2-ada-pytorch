@@ -33,7 +33,7 @@ class GradualStyleBlock(Module):
 
 
 class GradualStyleEncoder(Module):
-    def __init__(self, num_layers, mode='ir', opts=None):
+    def __init__(self, num_layers, mode='ir', input_nc=3):
         super(GradualStyleEncoder, self).__init__()
         assert num_layers in [50, 100, 152], 'num_layers should be 50,100, or 152'
         assert mode in ['ir', 'ir_se'], 'mode should be ir or ir_se'
@@ -42,7 +42,7 @@ class GradualStyleEncoder(Module):
             unit_module = bottleneck_IR
         elif mode == 'ir_se':
             unit_module = bottleneck_IR_SE
-        self.input_layer = Sequential(Conv2d(opts.input_nc, 64, (3, 3), 1, 1, bias=False),
+        self.input_layer = Sequential(Conv2d(input_nc, 64, (3, 3), 1, 1, bias=False),
                                       InstanceNorm2d(64),
                                       PReLU(64))
         modules = []
@@ -117,7 +117,7 @@ class GradualStyleEncoder(Module):
 
 
 class BackboneEncoderUsingLastLayerIntoW(Module):
-    def __init__(self, num_layers, mode='ir', opts=None):
+    def __init__(self, num_layers, mode='ir', input_nc=3):
         super(BackboneEncoderUsingLastLayerIntoW, self).__init__()
         print('Using BackboneEncoderUsingLastLayerIntoW')
         assert num_layers in [50, 100, 152], 'num_layers should be 50,100, or 152'
@@ -127,11 +127,11 @@ class BackboneEncoderUsingLastLayerIntoW(Module):
             unit_module = bottleneck_IR
         elif mode == 'ir_se':
             unit_module = bottleneck_IR_SE
-        self.input_layer = Sequential(Conv2d(opts.input_nc, 64, (3, 3), 1, 1, bias=False),
-                                      BatchNorm2d(64),
+        self.input_layer = Sequential(Conv2d(input_nc, 64, (3, 3), 1, 1, bias=False),
+                                      InstanceNorm2d(64),
                                       PReLU(64))
         self.output_pool = torch.nn.AdaptiveAvgPool2d((1, 1))
-        self.linear = EqualLinear(512, 512, lr_mul=1)
+        self.linear = FullyConnectedLayer(512, 512)
         modules = []
         for block in blocks:
             for bottleneck in block:
@@ -150,7 +150,7 @@ class BackboneEncoderUsingLastLayerIntoW(Module):
 
 
 class BackboneEncoderUsingLastLayerIntoWPlus(Module):
-    def __init__(self, num_layers, mode='ir', opts=None):
+    def __init__(self, num_layers, mode='ir', input_nc=3):
         super(BackboneEncoderUsingLastLayerIntoWPlus, self).__init__()
         print('Using BackboneEncoderUsingLastLayerIntoWPlus')
         assert num_layers in [50, 100, 152], 'num_layers should be 50,100, or 152'
@@ -160,14 +160,14 @@ class BackboneEncoderUsingLastLayerIntoWPlus(Module):
             unit_module = bottleneck_IR
         elif mode == 'ir_se':
             unit_module = bottleneck_IR_SE
-        self.input_layer = Sequential(Conv2d(opts.input_nc, 64, (3, 3), 1, 1, bias=False),
-                                      BatchNorm2d(64),
+        self.input_layer = Sequential(Conv2d(input_nc, 64, (3, 3), 1, 1, bias=False),
+                                      InstanceNorm2d(64),
                                       PReLU(64))
-        self.output_layer_2 = Sequential(BatchNorm2d(512),
+        self.output_layer_2 = Sequential(InstanceNorm2d(512),
                                          torch.nn.AdaptiveAvgPool2d((7, 7)),
                                          Flatten(),
                                          Linear(512 * 7 * 7, 512))
-        self.linear = EqualLinear(512, 512 * 18, lr_mul=1)
+        self.linear = FullyConnectedLayer(512, 512 * 18)
         modules = []
         for block in blocks:
             for bottleneck in block:

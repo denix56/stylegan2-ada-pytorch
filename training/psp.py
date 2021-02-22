@@ -11,9 +11,10 @@ def get_keys(d, name):
 
 class pSp(nn.Module):
 
-    def __init__(self, encoder_type):
+    def __init__(self, encoder_type, c_dim, img_resolution, img_channels):
         super(pSp, self).__init__()
         self.encoder_type = encoder_type
+        self.img_channels = img_channels
         
         # Define architecture
         self.encoder = self.set_encoder()
@@ -21,13 +22,13 @@ class pSp(nn.Module):
 
     def set_encoder(self):
         if self.encoder_type == 'GradualStyleEncoder':
-            encoder = psp_encoders.GradualStyleEncoder(50, 'ir_se', self.opts)
+            encoder = psp_encoders.GradualStyleEncoder(50, 'ir_se', input_nc=self.img_channels)
         elif self.encoder_type == 'BackboneEncoderUsingLastLayerIntoW':
-            encoder = psp_encoders.BackboneEncoderUsingLastLayerIntoW(50, 'ir_se', self.opts)
+            encoder = psp_encoders.BackboneEncoderUsingLastLayerIntoW(50, 'ir_se', input_nc=self.img_channels)
         elif self.encoder_type == 'BackboneEncoderUsingLastLayerIntoWPlus':
-            encoder = psp_encoders.BackboneEncoderUsingLastLayerIntoWPlus(50, 'ir_se', self.opts)
+            encoder = psp_encoders.BackboneEncoderUsingLastLayerIntoWPlus(50, 'ir_se', input_nc=self.img_channels)
         else:
-            raise Exception('{} is not a valid encoders'.format(self.opts.encoder_type))
+            raise Exception('{} is not a valid encoders'.format(self.encoder_type))
         return encoder
 
 #     def load_weights(self):

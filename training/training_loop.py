@@ -477,7 +477,7 @@ def training_loop_encoder(
         print('Constructing networks...')
     common_kwargs = dict(c_dim=training_set.label_dim, img_resolution=training_set.resolution, img_channels=training_set.num_channels)
     G = dnnlib.util.construct_class_by_name(**G_kwargs, **common_kwargs).train().requires_grad_(False).to(device) # subclass of
-    E = dnnlib.util.construct_class_by_name(**E_kwargs).train().requires_grad_(False).to(device)
+    E = dnnlib.util.construct_class_by_name(**E_kwargs, **common_kwargs).train().requires_grad_(False).to(device)
     # Resume from existing pickle.
     if (resume_pkl is not None) and (rank == 0):
         print(f'Resuming from "{resume_pkl}"')
