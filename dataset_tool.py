@@ -54,6 +54,7 @@ def open_image_folder(source_dir, *, max_images: Optional[int]):
 
     # Load labels.
     labels = {}
+    subdir_labels = False
     meta_fname = os.path.join(source_dir, 'dataset.json')
     if os.path.isfile(meta_fname):
         with open(meta_fname, 'r') as file:
@@ -62,13 +63,19 @@ def open_image_folder(source_dir, *, max_images: Optional[int]):
                 labels = { x[0]: x[1] for x in labels }
             else:
                 labels = {}
+    else:
+        subdirs = [f.name for f in os.scandir(source_dir) if f.is_dir()]
+        labels = { x : i for i, x in enumerate(subdirs) }
+        subdir_labels = True
 
     max_idx = maybe_min(len(input_images), max_images)
-
     def iterate_images():
         for idx, fname in enumerate(input_images):
-            arch_fname = os.path.relpath(fname, source_dir)
-            arch_fname = arch_fname.replace('\\', '/')
+            if subdir_labels:
+                arch_fname = os.path.basename(os.path.dirname(fname))
+            else:
+                arch_fname = os.path.relpath(fname, source_dir)
+                arch_fname = arch_fname.replace('\\', '/')
             img = np.array(PIL.Image.open(fname))
             yield dict(img=img, label=labels.get(arch_fname))
             if idx >= max_idx-1:
@@ -234,6 +241,19 @@ def make_transform(
         canvas = np.zeros([width, width, 3], dtype=np.uint8)
         canvas[(width - height) // 2 : (width + height) // 2, :] = img
         return canvas
+    
+    def pad(width, height, img):
+        img = PIL.Image.fromarray(img, 'RGB')
+        img = img.resize((width, height), resample)
+        img = np.array(img)
+        
+        pad = abs(width - height) // 2
+        if width > height:
+            img = np.pad(img, ((pad, pad), (0, 0), (0, 0)))
+        elif width < height:
+            img = np.pad(img, ((0, 0), (pad, pad), (0, 0)))
+            
+        return img
 
     if transform is None:
         return functools.partial(scale, output_width, output_height)
@@ -245,6 +265,10 @@ def make_transform(
         if (output_width is None) or (output_height is None):
             error ('must specify --width and --height when using ' + transform + ' transform')
         return functools.partial(center_crop_wide, output_width, output_height)
+    if transform == 'pad':
+        if (output_width is None) or (output_height is None):
+            error ('must specify --width and --height when using ' + transform + ' transform')
+        return functools.partial(pad, output_width, output_height)
     assert False, 'unknown transform'
 
 #----------------------------------------------------------------------------
@@ -307,7 +331,7 @@ def open_dest(dest: str) -> Tuple[str, Callable[[str, Union[bytes, str]], None],
 @click.option('--dest', help='Output directory or archive name for output dataset', required=True, metavar='PATH')
 @click.option('--max-images', help='Output only up to `max-images` images', type=int, default=None)
 @click.option('--resize-filter', help='Filter to use when resizing images for output resolution', type=click.Choice(['box', 'lanczos']), default='lanczos', show_default=True)
-@click.option('--transform', help='Input crop/resize mode', type=click.Choice(['center-crop', 'center-crop-wide']))
+@click.option('--transform', help='Input crop/resize mode', type=click.Choice(['center-crop', 'center-crop-wide', 'pad']))
 @click.option('--width', help='Output width', type=int)
 @click.option('--height', help='Output height', type=int)
 def convert_dataset(
@@ -431,6 +455,7 @@ def convert_dataset(
         img.save(image_bits, format='png', compress_level=0, optimize=False)
         save_bytes(os.path.join(archive_root_dir, archive_fname), image_bits.getbuffer())
         labels.append([archive_fname, image['label']] if image['label'] is not None else None)
+        print([archive_fname, image['label']])
 
     metadata = {
         'labels': labels if all(x is not None for x in labels) else None
