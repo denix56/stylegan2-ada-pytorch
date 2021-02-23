@@ -22,7 +22,7 @@ class pSp(nn.Module):
 
     def set_encoder(self):
         if self.encoder_type == 'gradual':
-            encoder = psp_encoders.GradualStyleEncoder(50, 'ir_se', input_nc=self.img_channels)
+            encoder = psp_encoders.GradualStyleEncoder2(input_nc=self.img_channels)
         elif self.encoder_type == 'w':
             encoder = psp_encoders.BackboneEncoderUsingLastLayerIntoW(50, 'ir_se', input_nc=self.img_channels)
         elif self.encoder_type == 'w+':
