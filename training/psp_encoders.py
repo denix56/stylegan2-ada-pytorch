@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU
+from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU, Embedding
 
 from .helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE, FPN101
 from .networks import FullyConnectedLayer
@@ -46,7 +46,27 @@ class GradualStyleEncoder2(Module):
         super(GradualStyleEncoder2, self).__init__()
 
         self.fpn = FPN101(input_nc)
-        self.map2style = Sequential(
+        self.embed = Embedding(18, 512)
+
+        self.map2style1 = Sequential(
+            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            LeakyReLU(inplace=True),
+            InstanceNorm2d(512),
+            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            LeakyReLU(inplace=True),
+            InstanceNorm2d(512),
+        )
+
+        self.map2style2 = Sequential(
+            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            LeakyReLU(inplace=True),
+            InstanceNorm2d(512),
+        )
+
+        self.map2style3 = Sequential(
+            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            LeakyReLU(inplace=True),
+            InstanceNorm2d(512),
             Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
             LeakyReLU(inplace=True),
             InstanceNorm2d(512),
@@ -61,8 +81,16 @@ class GradualStyleEncoder2(Module):
             InstanceNorm2d(512),
         )
 
-        self.merge_layer = Sequential(
+        self.last1 = Sequential(
+            Conv2d(1024, 512, kernel_size=1, stride=1, padding=0),
+            LeakyReLU(inplace=True),
+            InstanceNorm2d(512),
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            LeakyReLU(inplace=True),
+            InstanceNorm2d(512)
+        )
+        self.last2 = Sequential(
+            Conv2d(1024, 512, kernel_size=1, stride=1, padding=0),
             LeakyReLU(inplace=True),
             InstanceNorm2d(512),
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
@@ -75,7 +103,32 @@ class GradualStyleEncoder2(Module):
     def forward(self, x):
         p3, p4, p5 = self.fpn(x)
         print(p3.shape, p4.shape, p5.shape)
-        out = torch.zeros(x.size(0), 18, 512)
+        p3 = self.map2style1(p3)
+        p3 = self.map2style2(p3)
+        p3 = self.map2style3(p3)
+
+        p4 = self.map2style2(p4)
+        p4 = self.map2style3(p4)
+        p4 = torch.cat((p3, p4), dim=1)
+        p4 = self.last1(p4)
+
+        p5 = self.map2style3(p5)
+        p5 = torch.cat((p4, p5), dim=1)
+        p5 = self.last1(p5)
+        print(p3.shape, p4.shape, p5.shape)
+        p_list = []
+        for i in range(6):
+            embd = self.embed(torch.tensor(i))
+            p_list.append(self.last2(torch.cat((p3, embd), dim=1)))
+        for i in range(6, 12):
+            embd = self.embed(torch.tensor(i))
+            p_list.append(self.last2(torch.cat((p4, embd), dim=1)))
+        for i in range(12, 18):
+            embd = self.embed(torch.tensor(i))
+            p_list.append(self.last2(torch.cat((p5, embd), dim=1)))
+
+        out = torch.stack(p_list, dim=1)
+        out = self.linear(out)
         return out
 
 
