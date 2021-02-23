@@ -99,6 +99,7 @@ class GradualStyleEncoder(Module):
         modulelist = list(self.body._modules.values())
         for i, l in enumerate(modulelist):
             x = l(x)
+            print(i, x.shape)
             if i == 6:
                 c1 = x
             elif i == 20:
