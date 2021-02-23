@@ -64,11 +64,11 @@ class GradualStyleEncoder(Module):
         self.middle_ind = 7
         for i in range(self.style_count):
             if i < self.coarse_ind:
-                style = GradualStyleBlock(512, 512, 16)
-            elif i < self.middle_ind:
                 style = GradualStyleBlock(512, 512, 32)
-            else:
+            elif i < self.middle_ind:
                 style = GradualStyleBlock(512, 512, 64)
+            else:
+                style = GradualStyleBlock(512, 512, 128)
             self.styles.append(style)
         self.latlayer1 = nn.Conv2d(256, 512, kernel_size=1, stride=1, padding=0)
         self.latlayer2 = nn.Conv2d(128, 512, kernel_size=1, stride=1, padding=0)
@@ -99,9 +99,9 @@ class GradualStyleEncoder(Module):
         modulelist = list(self.body._modules.values())
         for i, l in enumerate(modulelist):
             x = l(x)
-            if i == 7:
+            if i == 8:
                 c1 = x
-            elif i == 15:
+            elif i == 20:
                 c2 = x
             elif i == 23:
                 c3 = x
