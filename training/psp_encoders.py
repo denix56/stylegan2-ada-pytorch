@@ -117,13 +117,13 @@ class GradualStyleEncoder2(Module):
         p_list = []
 
         for i in indices[:6]:
-            embd = self.embed(i)[..., 1, 1]
+            embd = self.embed(i)[..., None, None]
             p_list.append(self.last2(torch.cat((p3, embd), dim=1)))
         for i in indices[6:12]:
-            embd = self.embed(i)[..., 1, 1]
+            embd = self.embed(i)[..., None, None]
             p_list.append(self.last2(torch.cat((p4, embd), dim=1)))
         for i in indices[12:18]:
-            embd = self.embed(i)[..., 1, 1]
+            embd = self.embed(i)[..., None, None]
             p_list.append(self.last2(torch.cat((p5, embd), dim=1)))
 
         out = torch.stack(p_list, dim=1)
