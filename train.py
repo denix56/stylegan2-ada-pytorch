@@ -371,6 +371,7 @@ def setup_training_loop_kwargs(
 def setup_training_loop_encoder_kwargs(
     # General options (not included in desc).
     gpus       = None, # Number of GPUs: <int>, default = 1 gpu
+    gpu_ids    = None,
     snap       = None, # Snapshot interval: <int>, default = 50 ticks
     img_snap   = None,
     seed       = None, # Random seed: <int>, default = 0
@@ -403,18 +404,18 @@ def setup_training_loop_encoder_kwargs(
     # ------------------------------------------
     # General options: gpus, snap, metrics, seed
     # ------------------------------------------
-
     if gpus is None:
         gpus = 1
     assert isinstance(gpus, int)
     if not (gpus >= 1 and gpus & (gpus - 1) == 0):
         raise UserError('--gpus must be a power of two')
-    if isinstance(gpus, int):
+    if gpu_ids is None:
         args.num_gpus = gpus
         args.rank_gpu_map = None
     else:
-        args.num_gpus = len(gpus)
-        args.rank_gpu_map = gpus
+        args.num_gpus = len(gpu_ids)
+        args.rank_gpu_map = gpu_ids
+        print(gpu_ids)
 
     if snap is None:
         snap = 50
@@ -657,6 +658,7 @@ class CommaSeparatedList(click.ParamType):
 # General options.
 @click.option('--outdir', help='Where to save the results', required=True, metavar='DIR')
 @click.option('--gpus', help='Number of GPUs to use [default: 1]', type=int, metavar='INT')
+@click.option('--gpu_ids', help='GPUs to use', type=int, metavar='INT', multiple=True)
 @click.option('--snap', help='Snapshot interval [default: 50 ticks]', type=int, metavar='INT')
 @click.option('--img_snap', help='Image snapshot interval [default: same as snap]', type=int, metavar='INT')
 @click.option('--metrics', help='Comma-separated list or "none" [default: fid50k_full]', type=CommaSeparatedList())
