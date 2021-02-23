@@ -119,5 +119,4 @@ class bottleneck_IR_SE(Module):
 	def forward(self, x):
 		shortcut = self.shortcut_layer(x)
 		res = self.res_layer(x)
-		print(res.shape)
 		return res + shortcut

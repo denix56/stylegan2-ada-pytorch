@@ -75,7 +75,6 @@ class pSp(nn.Module):
 #                         codes[:, i] = inject_latent[:, i]
 #                 else:
 #                     codes[:, i] = 0
-        print(codes.shape)
         return codes
 
 

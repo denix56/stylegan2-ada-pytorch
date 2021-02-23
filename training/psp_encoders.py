@@ -36,13 +36,8 @@ class GradualStyleBlock(Module):
 
     def forward(self, x):
         x = self.convs(x)
-        print('*********************************')
-        print(x.shape)
-        x = x.flatten(1, -1)
-        print(x.shape)
+        x = x.view(-1, self.out_c)
         x = self.linear(x)
-        print(x.shape)
-        print('*********************************')
         return x
 
 
@@ -114,20 +109,15 @@ class GradualStyleEncoder(Module):
                 c2 = x
             elif i == 23:
                 c3 = x
-        print(c1.shape, c2.shape, c3.shape)
         for j in range(self.coarse_ind):
             latents.append(self.styles[j](c3))
-        print('a')
         p2 = self._upsample_add(c3, self.latlayer1(c2))
         for j in range(self.coarse_ind, self.middle_ind):
             latents.append(self.styles[j](p2))
-        print('b')
         p1 = self._upsample_add(p2, self.latlayer2(c1))
         for j in range(self.middle_ind, self.style_count):
             latents.append(self.styles[j](p1))
-        print('latents', latents[0].shape)
         out = torch.stack(latents, dim=1)
-        print('out', out.shape)
         return out
 
 
