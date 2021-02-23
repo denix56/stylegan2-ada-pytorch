@@ -31,9 +31,9 @@ def get_blocks(num_layers):
 		blocks = [
 			get_block(in_channel=64, depth=64, num_units=3),
 			get_block(in_channel=64, depth=128, num_units=4),
-			get_block(in_channel=128, depth=256, num_units=14),
-			get_block(in_channel=256, depth=512, num_units=3),
-			get_block(in_channel=512, depth=512, num_units=3)
+			get_block(in_channel=128, depth=256, num_units=10),
+			get_block(in_channel=256, depth=512, num_units=7),
+			get_block(in_channel=512, depth=1024, num_units=3)
 		]
 	elif num_layers == 100:
 		blocks = [
