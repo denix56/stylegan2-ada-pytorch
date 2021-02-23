@@ -143,8 +143,8 @@ class PSPLoss(Loss):
         self.G_synthesis = G_synthesis
         self.E = E
         
-        self.lpips_loss = lpips.LPIPS(net='vgg')
-        self.mse_loss = nn.MSELoss()
+        self.lpips_loss = lpips.LPIPS(net='vgg').to(device)
+        self.mse_loss = nn.MSELoss().to(device)
 
     def run_G(self, codes, c, sync, truncation_psi=1, truncation_cutoff=None):
         with misc.ddp_sync(self.G_mapping, sync):
