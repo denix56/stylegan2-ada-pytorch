@@ -656,7 +656,7 @@ class CommaSeparatedList(click.ParamType):
 @click.pass_context
 
 # General options.
-@click.argument('--gpu_ids', help='GPUs to use', type=int, nargs=-1)
+@click.argument('--gpu_ids', type=int, nargs=-1)
 @click.option('--outdir', help='Where to save the results', required=True, metavar='DIR')
 @click.option('--gpus', help='Number of GPUs to use [default: 1]', type=int, metavar='INT')
 @click.option('--snap', help='Snapshot interval [default: 50 ticks]', type=int, metavar='INT')
