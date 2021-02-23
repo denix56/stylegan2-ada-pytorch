@@ -411,7 +411,7 @@ def setup_training_loop_encoder_kwargs(
     assert isinstance(snap, int)
     if snap < 1:
         raise UserError('--snap must be at least 1')
-    args.image_snapshot_ticks = snap
+    args.image_snapshot_ticks = snap if img_snap is None else img_snap
     args.network_snapshot_ticks = snap
     
     if encoder_type is None:
