@@ -525,7 +525,29 @@ def training_loop_encoder(
             phase.start_event = torch.cuda.Event(enable_timing=True)
             phase.end_event = torch.cuda.Event(enable_timing=True)
 
-    # Export sample images.
+        # Export sample images.
+        grid_size = None
+        grid_z = None
+        grid_c = None
+        if rank == 0:
+            print('Exporting sample images...')
+            grid_size, images, labels = setup_snapshot_image_grid(training_set=training_set)
+            save_image_grid(images, os.path.join(run_dir, 'reals.jpg'), drange=[0, 255], grid_size=grid_size)
+            with torch.no_grad():
+                E.eval()
+                G.eval()
+                real_imgs, real_cs = next(training_set_iterator)
+                real_imgs = (real_imgs.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
+                real_cs = real_cs.to(device).split(batch_gpu)
+                images = []
+                for real_img, real_c in zip(real_imgs, real_cs):
+                    codes = E(real_img, real_c)
+                    images.append(G(codes, c=real_c).cpu())
+                images = torch.cat(images, dim=0).numpy()
+                save_image_grid(images, os.path.join(run_dir, f'fakes_init.jpg'), drange=[-1, 1],
+                                grid_size=grid_size)
+                E.train()
+                G.train()
 
     # Initialize logs.
     if rank == 0:
@@ -624,13 +646,20 @@ def training_loop_encoder(
 
         # Save image snapshot.
         if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0):
-            real_img, real_c = next(training_set_iterator)
-            real_img = (real_img.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
-            real_c = real_c.to(device).split(batch_gpu)
-            codes = E(real_img, real_c)
-            images = G(codes, c=real_c).cpu().numpy()
-            save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png'), drange=[-1,1], grid_size=grid_size)
-
+            with torch.no_grad():
+                E.eval()
+                G.eval()
+                real_imgs, real_cs = next(training_set_iterator)
+                real_imgs = (real_imgs.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
+                real_cs = real_cs.to(device).split(batch_gpu)
+                images = []
+                for real_img, real_c in zip(real_imgs, real_cs):
+                    codes = E(real_img, real_c)
+                    images.append(G(codes, c=real_c).cpu())
+                images = torch.cat(images, dim=0).numpy()
+                save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.jpg'), drange=[-1,1], grid_size=grid_size)
+                E.train()
+                G.train()
         # Save network snapshot.
         snapshot_pkl = None
         snapshot_data = None
