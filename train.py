@@ -77,7 +77,12 @@ def setup_training_loop_kwargs(
     assert isinstance(gpus, int)
     if not (gpus >= 1 and gpus & (gpus - 1) == 0):
         raise UserError('--gpus must be a power of two')
-    args.num_gpus = gpus
+    if isinstance(gpus, int):
+        args.num_gpus = gpus
+        args.rank_gpu_map = None
+    else:
+        args.num_gpus = len(gpus)
+        args.rank_gpu_map = gpus
 
     if snap is None:
         snap = 50
@@ -404,7 +409,12 @@ def setup_training_loop_encoder_kwargs(
     assert isinstance(gpus, int)
     if not (gpus >= 1 and gpus & (gpus - 1) == 0):
         raise UserError('--gpus must be a power of two')
-    args.num_gpus = gpus
+    if isinstance(gpus, int):
+        args.num_gpus = gpus
+        args.rank_gpu_map = None
+    else:
+        args.num_gpus = len(gpus)
+        args.rank_gpu_map = gpus
 
     if snap is None:
         snap = 50
@@ -601,7 +611,7 @@ def setup_training_loop_encoder_kwargs(
 
 #----------------------------------------------------------------------------
 
-def subprocess_fn(rank, args, temp_dir, encoder_mode):
+def subprocess_fn(rank, args, temp_dir, encoder_mode, rank_gpu_map = None):
     dnnlib.util.Logger(file_name=os.path.join(args.run_dir, 'log.txt'), file_mode='a', should_flush=True)
 
     # Init torch.distributed.
@@ -613,16 +623,18 @@ def subprocess_fn(rank, args, temp_dir, encoder_mode):
         else:
             init_method = f'file://{init_file}'
             torch.distributed.init_process_group(backend='nccl', init_method=init_method, rank=rank, world_size=args.num_gpus)
+    if rank_gpu_map is None:
+        rank_gpu_map = list(range(args.num_gpus))
 
     # Init torch_utils.
-    sync_device = torch.device('cuda', rank) if args.num_gpus > 1 else None
+    sync_device = torch.device('cuda', rank_gpu_map[rank]) if args.num_gpus > 1 else None
     training_stats.init_multiprocessing(rank=rank, sync_device=sync_device)
     if rank != 0:
         custom_ops.verbosity = 'none'
 
     # Execute training loop.
     if encoder_mode:
-        training_loop.training_loop_encoder(rank=rank, **args)
+        training_loop.training_loop_encoder(rank=rank, rank_gpu_map=rank_gpu_map, **args)
     else:
         training_loop.training_loop(rank=rank, **args)
 
@@ -780,7 +792,8 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
         if args.num_gpus == 1:
             subprocess_fn(rank=0, args=args, temp_dir=temp_dir, encoder_mode=encoder_mode)
         else:
-            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode), nprocs=args.num_gpus)
+            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode, args.rank_gpu_map),
+                                        nprocs=args.num_gpus)
 
 #----------------------------------------------------------------------------
 
