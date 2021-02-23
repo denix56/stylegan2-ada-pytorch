@@ -540,7 +540,7 @@ def training_loop_encoder(
             with torch.no_grad():
                 E.eval()
                 G.eval()
-                real_imgs = (images.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
+                real_imgs = (torch.from_numpy(images).to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
                 real_cs = labels.to(device).split(batch_gpu)
                 images = []
                 for real_img, real_c in zip(real_imgs, real_cs):
@@ -652,7 +652,7 @@ def training_loop_encoder(
             with torch.no_grad():
                 E.eval()
                 G.eval()
-                real_imgs = (images.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
+                real_imgs = (torch.from_numpy(images).to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
                 real_cs = labels.to(device).split(batch_gpu)
                 images = []
                 for real_img, real_c in zip(real_imgs, real_cs):
