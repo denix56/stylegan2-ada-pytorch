@@ -120,7 +120,7 @@ class GradualStyleEncoder(Module):
             latents.append(self.styles[j](p1))
         print(latents[0].shape)
         out = torch.stack(latents, dim=1)
-        print(out.shape)
+        print('out', out.shape)
         return out
 
 

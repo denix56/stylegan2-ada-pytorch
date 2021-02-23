@@ -164,6 +164,7 @@ class PSPLoss(Loss):
     def run_E(self, img, c, sync):
         with misc.ddp_sync(self.E, sync):
             codes = self.E(img, c)
+        print(codes.shape)
         return codes
 
     def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, sync, gain):
