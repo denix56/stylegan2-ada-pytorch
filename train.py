@@ -77,12 +77,7 @@ def setup_training_loop_kwargs(
     assert isinstance(gpus, int)
     if not (gpus >= 1 and gpus & (gpus - 1) == 0):
         raise UserError('--gpus must be a power of two')
-    if isinstance(gpus, int):
-        args.num_gpus = gpus
-        args.rank_gpu_map = None
-    else:
-        args.num_gpus = len(gpus)
-        args.rank_gpu_map = gpus
+    args.num_gpus = gpus
 
     if snap is None:
         snap = 50
@@ -371,7 +366,6 @@ def setup_training_loop_kwargs(
 def setup_training_loop_encoder_kwargs(
     # General options (not included in desc).
     gpus       = None, # Number of GPUs: <int>, default = 1 gpu
-    gpu_ids    = None,
     snap       = None, # Snapshot interval: <int>, default = 50 ticks
     img_snap   = None,
     seed       = None, # Random seed: <int>, default = 0
@@ -404,18 +398,13 @@ def setup_training_loop_encoder_kwargs(
     # ------------------------------------------
     # General options: gpus, snap, metrics, seed
     # ------------------------------------------
+
     if gpus is None:
         gpus = 1
     assert isinstance(gpus, int)
     if not (gpus >= 1 and gpus & (gpus - 1) == 0):
         raise UserError('--gpus must be a power of two')
-    if gpu_ids is None:
-        args.num_gpus = gpus
-        rank_gpu_map = None
-    else:
-        args.num_gpus = len(gpu_ids)
-        rank_gpu_map = gpu_ids
-        print(gpu_ids)
+    args.num_gpus = gpus
 
     if snap is None:
         snap = 50
@@ -608,11 +597,11 @@ def setup_training_loop_encoder_kwargs(
             raise UserError('--workers must be at least 1')
         args.data_loader_kwargs.num_workers = workers
 
-    return desc, rank_gpu_map, args
+    return desc, args
 
 #----------------------------------------------------------------------------
 
-def subprocess_fn(rank, args, temp_dir, encoder_mode, rank_gpu_map = None):
+def subprocess_fn(rank, args, temp_dir, encoder_mode):
     dnnlib.util.Logger(file_name=os.path.join(args.run_dir, 'log.txt'), file_mode='a', should_flush=True)
 
     # Init torch.distributed.
@@ -624,18 +613,16 @@ def subprocess_fn(rank, args, temp_dir, encoder_mode, rank_gpu_map = None):
         else:
             init_method = f'file://{init_file}'
             torch.distributed.init_process_group(backend='nccl', init_method=init_method, rank=rank, world_size=args.num_gpus)
-    if rank_gpu_map is None:
-        rank_gpu_map = list(range(args.num_gpus))
 
     # Init torch_utils.
-    sync_device = torch.device('cuda', rank_gpu_map[rank]) if args.num_gpus > 1 else None
+    sync_device = torch.device('cuda', rank) if args.num_gpus > 1 else None
     training_stats.init_multiprocessing(rank=rank, sync_device=sync_device)
     if rank != 0:
         custom_ops.verbosity = 'none'
 
     # Execute training loop.
     if encoder_mode:
-        training_loop.training_loop_encoder(rank=rank, rank_gpu_map=rank_gpu_map, **args)
+        training_loop.training_loop_encoder(rank=rank, **args)
     else:
         training_loop.training_loop(rank=rank, **args)
 
@@ -658,7 +645,6 @@ class CommaSeparatedList(click.ParamType):
 # General options.
 @click.option('--outdir', help='Where to save the results', required=True, metavar='DIR')
 @click.option('--gpus', help='Number of GPUs to use [default: 1]', type=int, metavar='INT')
-@click.option('--gpu_ids', help='GPUs to use', type=int, metavar='INT', multiple=True)
 @click.option('--snap', help='Snapshot interval [default: 50 ticks]', type=int, metavar='INT')
 @click.option('--img_snap', help='Image snapshot interval [default: same as snap]', type=int, metavar='INT')
 @click.option('--metrics', help='Comma-separated list or "none" [default: fid50k_full]', type=CommaSeparatedList())
@@ -747,7 +733,7 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
         if not encoder_mode:
             run_desc, args = setup_training_loop_kwargs(**config_kwargs)
         else:
-            run_desc, rank_gpu_map, args = setup_training_loop_encoder_kwargs(**config_kwargs)
+            run_desc, args = setup_training_loop_encoder_kwargs(**config_kwargs)
     except UserError as err:
         ctx.fail(err)
 
@@ -794,8 +780,7 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
         if args.num_gpus == 1:
             subprocess_fn(rank=0, args=args, temp_dir=temp_dir, encoder_mode=encoder_mode)
         else:
-            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode, rank_gpu_map),
-                                        nprocs=args.num_gpus)
+            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode), nprocs=args.num_gpus)
 
 #----------------------------------------------------------------------------
 

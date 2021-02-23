@@ -98,8 +98,7 @@ def training_loop(
     metrics                 = [],       # Metrics to evaluate during training.
     random_seed             = 0,        # Global random seed.
     num_gpus                = 1,        # Number of GPUs participating in the training.
-    rank                    = 0,        # Rank of the current process in [0, num_gpus].
-    rank_gpu_map            = None,
+    rank                    = 0,        # Rank of the current process in [0, num_gpus[.
     batch_size              = 4,        # Total batch size for one training iteration. Can be larger than batch_gpu * num_gpus.
     batch_gpu               = 4,        # Number of samples processed at a time by one GPU.
     ema_kimg                = 10,       # Half-life of the exponential moving average (EMA) of generator weights.
@@ -122,7 +121,7 @@ def training_loop(
 ):
     # Initialize.
     start_time = time.time()
-    device = torch.device('cuda', rank_gpu_map[rank])
+    device = torch.device('cuda', rank)
     np.random.seed(random_seed * num_gpus + rank)
     torch.manual_seed(random_seed * num_gpus + rank)
     torch.backends.cudnn.benchmark = cudnn_benchmark    # Improves training speed.
@@ -373,8 +372,7 @@ def training_loop(
                 print('Evaluating metrics...')
             for metric in metrics:
                 result_dict = metric_main.calc_metric(metric=metric, G=snapshot_data['G_ema'],
-                    dataset_kwargs=training_set_kwargs, num_gpus=num_gpus, rank=rank,
-                                                      rank_gpu_map=rank_gpu_map, device=device)
+                    dataset_kwargs=training_set_kwargs, num_gpus=num_gpus, rank=rank, device=device)
                 if rank == 0:
                     metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
                 stats_metrics.update(result_dict.results)
@@ -433,8 +431,7 @@ def training_loop_encoder(
     loss_kwargs             = {},
     random_seed             = 0,        # Global random seed.
     num_gpus                = 1,        # Number of GPUs participating in the training.
-    rank                    = 0,        # Rank of the current process in [0, num_gpus].
-    rank_gpu_map            = None,
+    rank                    = 0,        # Rank of the current process in [0, num_gpus[.
     batch_size              = 4,        # Total batch size for one training iteration. Can be larger than batch_gpu * num_gpus.
     batch_gpu               = 4,        # Number of samples processed at a time by one GPU.
     ema_kimg                = 10,       # Half-life of the exponential moving average (EMA) of generator weights.
@@ -451,7 +448,7 @@ def training_loop_encoder(
 ):
     # Initialize.
     start_time = time.time()
-    device = torch.device('cuda', rank_gpu_map[rank])
+    device = torch.device('cuda', rank)
     np.random.seed(random_seed * num_gpus + rank)
     torch.manual_seed(random_seed * num_gpus + rank)
     torch.backends.cudnn.benchmark = cudnn_benchmark    # Improves training speed.
@@ -630,7 +627,7 @@ def training_loop_encoder(
             real_img = (real_img.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
             real_c = real_c.to(device).split(batch_gpu)
             codes = E(real_img, real_c)
-            images = G.synthesis(codes, c=real_c).cpu().numpy()
+            images = G(codes, c=real_c).cpu().numpy()
             save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png'), drange=[-1,1], grid_size=grid_size)
 
         # Save network snapshot.
