@@ -157,6 +157,7 @@ class PSPLoss(Loss):
                                            truncation_cutoff=truncation_cutoff,
                                            skip_w_avg_update=True,
                                            broadcast=False))
+                    print(ws[-1].shape, codes[:, i].shape)
                 ws = torch.cat(ws, dim=1)
                 print(ws.shape)
         with misc.ddp_sync(self.G_synthesis, sync):
