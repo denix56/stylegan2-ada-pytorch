@@ -103,15 +103,17 @@ class bottleneck_IR_SE(Module):
 		else:
 			self.shortcut_layer = Sequential(
 				Conv2d(in_channel, depth, (1, 1), stride, bias=False),
-				BatchNorm2d(depth)
 			)
 		self.res_layer = Sequential(
-			BatchNorm2d(in_channel),
-			Conv2d(in_channel, depth, (3, 3), (1, 1), 1, bias=False),
+			Conv2d(in_channel, depth, kernel_size=1, stride=1, padding=0, bias=False),
+			Conv2d(depth, depth, kernel_size=3, stride=1, padding=1, bias=False, groups=depth),
 			PReLU(depth),
-			Conv2d(depth, depth, (3, 3), stride, 1, bias=False),
-			BatchNorm2d(depth),
-			SEModule(depth, 16)
+			BatchNorm2d(in_channel),
+			Conv2d(depth, depth, kernel_size=1, stride=1, padding=0, bias=False),
+			Conv2d(depth, depth, kernel_size=3, stride=stride, padding=1, bias=False, groups=depth),
+			SEModule(depth, 16),
+			PReLU(depth),
+			BatchNorm2d(in_channel)
 		)
 
 	def forward(self, x):
