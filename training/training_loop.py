@@ -65,13 +65,17 @@ def setup_snapshot_image_grid(training_set, random_seed=0):
 
 #----------------------------------------------------------------------------
 
-def save_image_grid(img, fname, drange, grid_size):
+def save_image_grid(img, fname, drange, grid_size=None):
     lo, hi = drange
     img = np.asarray(img, dtype=np.float32)
     img = (img - lo) * (255 / (hi - lo))
     img = np.rint(img).clip(0, 255).astype(np.uint8)
 
-    gw, gh = grid_size
+    if grid_size is None:
+        gw = int(np.sqrt(img.shape[0]))
+        gh = img.shape[0] / gw
+    else:
+        gw, gh = grid_size
     _N, C, H, W = img.shape
     img = img.reshape(gh, gw, C, H, W)
     img = img.transpose(0, 3, 1, 4, 2)
@@ -536,18 +540,14 @@ def training_loop_encoder(
             with torch.no_grad():
                 E.eval()
                 G.eval()
-                real_imgs, real_cs = next(training_set_iterator)
-                real_imgs = (real_imgs.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
-                real_cs = real_cs.to(device).split(batch_gpu)
+                real_imgs = (images.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
+                real_cs = labels.to(device).split(batch_gpu)
                 images = []
                 for real_img, real_c in zip(real_imgs, real_cs):
                     codes = E(real_img, real_c)
                     images.append(G(codes, c=real_c).cpu())
-                print(images[0].shape)
                 images = torch.cat(images, dim=0).numpy()
-                print(images.shape)
-                save_image_grid(images, os.path.join(run_dir, f'fakes_init.jpg'), drange=[-1, 1],
-                                grid_size=grid_size)
+                save_image_grid(images, os.path.join(run_dir, f'fakes_init.jpg'), drange=[-1, 1], grid_size=grid_size)
                 E.train()
                 G.train()
 
@@ -648,12 +648,12 @@ def training_loop_encoder(
 
         # Save image snapshot.
         if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0):
+            grid_size, images, labels = setup_snapshot_image_grid(training_set=training_set)
             with torch.no_grad():
                 E.eval()
                 G.eval()
-                real_imgs, real_cs = next(training_set_iterator)
-                real_imgs = (real_imgs.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
-                real_cs = real_cs.to(device).split(batch_gpu)
+                real_imgs = (images.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
+                real_cs = labels.to(device).split(batch_gpu)
                 images = []
                 for real_img, real_c in zip(real_imgs, real_cs):
                     codes = E(real_img, real_c)
