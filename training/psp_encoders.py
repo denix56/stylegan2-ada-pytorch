@@ -116,15 +116,17 @@ class GradualStyleEncoder2(Module):
         p5 = torch.cat((p4, p5), dim=1)
         p5 = self.last1(p5)
         print(p3.shape, p4.shape, p5.shape)
+        indices = torch.arange(0, 18, device=x.device)
         p_list = []
-        for i in range(6):
-            embd = self.embed(torch.tensor(i))
+
+        for i in indices[:6]:
+            embd = self.embed(i)
             p_list.append(self.last2(torch.cat((p3, embd), dim=1)))
-        for i in range(6, 12):
-            embd = self.embed(torch.tensor(i))
+        for i in indices[6:12]:
+            embd = self.embed(i)
             p_list.append(self.last2(torch.cat((p4, embd), dim=1)))
-        for i in range(12, 18):
-            embd = self.embed(torch.tensor(i))
+        for i in indices[12:18]:
+            embd = self.embed(i)
             p_list.append(self.last2(torch.cat((p5, embd), dim=1)))
 
         out = torch.stack(p_list, dim=1)
