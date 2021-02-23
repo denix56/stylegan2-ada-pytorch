@@ -21,7 +21,7 @@ class GradualStyleBlock(Module):
             modules += [
                 Conv2d(out_c, out_c, kernel_size=1, stride=1, padding=0),
                 nn.LeakyReLU(inplace=True),
-                Conv2d(1, 1, kernel_size=3, stride=2, padding=1, groups=out_c),
+                Conv2d(out_c, out_c, kernel_size=3, stride=2, padding=1, groups=out_c),
                 nn.LeakyReLU(inplace=True)
             ]
         self.convs = nn.Sequential(*modules)
