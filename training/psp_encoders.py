@@ -27,6 +27,7 @@ class GradualStyleBlock(Module):
 
     def forward(self, x):
         x = self.convs(x)
+        print('*********************************')
         print(x.shape)
         x = x.flatten(1, -1)
         print(x.shape)
