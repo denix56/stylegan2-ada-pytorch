@@ -105,7 +105,7 @@ class GradualStyleEncoder(Module):
                 c2 = x
             elif i == 23:
                 c3 = x
-
+        print(c1.shape, c2.shape, c3.shape)
         for j in range(self.coarse_ind):
             latents.append(self.styles[j](c3))
 
