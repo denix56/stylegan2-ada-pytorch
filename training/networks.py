@@ -501,7 +501,7 @@ class Generator(torch.nn.Module):
                                        truncation_cutoff=truncation_cutoff,
                                        skip_w_avg_update=skip_w_avg_update,
                                        broadcast=False))
-            ws = torch.cat(ws, dim=1)
+            ws = torch.stack(ws, dim=1)
         else:
             ws = self.mapping(z, c,
                               truncation_psi=truncation_psi,

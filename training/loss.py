@@ -148,7 +148,6 @@ class PSPLoss(Loss):
 
     def run_G(self, codes, c, sync, truncation_psi=1, truncation_cutoff=None):
         with misc.ddp_sync(self.G_mapping, sync):
-            print(codes.shape)
             for i in range(codes.shape[1]):
                 ws = []
                 for i in range(codes.shape[1]):
@@ -159,14 +158,12 @@ class PSPLoss(Loss):
                                            broadcast=False))
                 ws = torch.stack(ws, dim=1)
         with misc.ddp_sync(self.G_synthesis, sync):
-            print(ws.shape)
             img = self.G_synthesis(ws)
         return img, ws
 
     def run_E(self, img, c, sync):
         with misc.ddp_sync(self.E, sync):
             codes = self.E(img, c)
-            print(codes.shape)
         return codes
 
     def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, sync, gain):
