@@ -560,7 +560,6 @@ def setup_training_loop_encoder_kwargs(
         args.resume_pkl = resume # custom path or url
 
     if resume != 'noresume':
-        args.ada_kimg = 100 # make ADA react faster at the beginning
         args.ema_rampup = None # disable EMA rampup
 
     # -------------------------------------------------

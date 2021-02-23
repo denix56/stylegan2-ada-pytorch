@@ -146,9 +146,17 @@ class PSPLoss(Loss):
         self.lpips_loss = lpips.LPIPS(net='vgg')
         self.mse_loss = nn.MSELoss()
 
-    def run_G(self, z, c, sync):
+    def run_G(self, codes, c, sync, truncation_psi=1, truncation_cutoff=None):
         with misc.ddp_sync(self.G_mapping, sync):
-            ws = self.G_mapping(z, c)
+            for i in range(codes.shape[1]):
+                ws = []
+                for i in range(codes.shape[1]):
+                    ws.append(self.G_mapping(codes[:, i], c,
+                                           truncation_psi=truncation_psi if truncation_cutoff is None or i < truncation_cutoff else 1,
+                                           truncation_cutoff=truncation_cutoff,
+                                           skip_w_avg_update=True,
+                                           broadcast=False))
+                ws = torch.cat(ws, dim=1)
         with misc.ddp_sync(self.G_synthesis, sync):
             img = self.G_synthesis(ws)
         return img, ws
@@ -158,7 +166,7 @@ class PSPLoss(Loss):
             codes = self.E(img, c)
         return codes
 
-    def accumulate_gradients(self, phase, real_img, real_c, sync):
+    def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, sync, gain):
     
         with torch.autograd.profiler.record_function('Emain_forward'):
             codes = self.run_E(real_img, real_c, sync=sync)

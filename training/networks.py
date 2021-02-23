@@ -211,7 +211,7 @@ class MappingNetwork(torch.nn.Module):
         if num_ws is not None and w_avg_beta is not None:
             self.register_buffer('w_avg', torch.zeros([w_dim]))
 
-    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, skip_w_avg_update=False):
+    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, skip_w_avg_update=False, broadcast=True):
         # Embed, normalize, and concat inputs.
         x = None
         with torch.autograd.profiler.record_function('input'):
@@ -234,7 +234,7 @@ class MappingNetwork(torch.nn.Module):
                 self.w_avg.copy_(x.detach().mean(dim=0).lerp(self.w_avg, self.w_avg_beta))
 
         # Broadcast.
-        if self.num_ws is not None:
+        if self.num_ws is not None and broadcast:
             with torch.autograd.profiler.record_function('broadcast'):
                 x = x.unsqueeze(1).repeat([1, self.num_ws, 1])
 
@@ -242,7 +242,7 @@ class MappingNetwork(torch.nn.Module):
         if truncation_psi != 1:
             with torch.autograd.profiler.record_function('truncate'):
                 assert self.w_avg_beta is not None
-                if self.num_ws is None or truncation_cutoff is None:
+                if self.num_ws is None or truncation_cutoff is None or not broadcast:
                     x = self.w_avg.lerp(x, truncation_psi)
                 else:
                     x[:, :truncation_cutoff] = self.w_avg.lerp(x[:, :truncation_cutoff], truncation_psi)
@@ -494,8 +494,20 @@ class Generator(torch.nn.Module):
         self.num_ws = self.synthesis.num_ws
         self.mapping = MappingNetwork(z_dim=z_dim, c_dim=c_dim, w_dim=w_dim, num_ws=self.num_ws, **mapping_kwargs)
 
-    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, **synthesis_kwargs):
-        ws = self.mapping(z, c, truncation_psi=truncation_psi, truncation_cutoff=truncation_cutoff)
+    def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, skip_w_avg_update=False, **synthesis_kwargs):
+        if len(z.shape) == 3:
+            ws = []
+            for i in range(z.shape[1]):
+                ws.append(self.mapping(z[:, i], c,
+                                       truncation_psi=truncation_psi if truncation_cutoff is None or i < truncation_cutoff else 1,
+                                       truncation_cutoff=truncation_cutoff,
+                                       skip_w_avg_update=skip_w_avg_update,
+                                       broadcast=False))
+            ws = torch.cat(ws, dim=1)
+        else:
+            ws = self.mapping(z, c,
+                              truncation_psi=truncation_psi,
+                              truncation_cutoff=truncation_cutoff)
         img = self.synthesis(ws, **synthesis_kwargs)
         return img
 
