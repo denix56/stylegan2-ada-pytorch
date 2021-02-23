@@ -101,9 +101,9 @@ class GradualStyleEncoder(Module):
         modulelist = list(self.body._modules.values())
         for i, l in enumerate(modulelist):
             x = l(x)
-            if i == 8:
+            if i == 11:
                 c1 = x
-            elif i == 20:
+            elif i == 17:
                 c2 = x
             elif i == 23:
                 c3 = x

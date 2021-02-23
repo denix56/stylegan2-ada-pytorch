@@ -32,7 +32,7 @@ def get_blocks(num_layers):
 			get_block(in_channel=64, depth=64, num_units=3),
 			get_block(in_channel=64, depth=128, num_units=3),
 			get_block(in_channel=128, depth=128, num_units=6),
-			get_block(in_channel=128, depth=256, num_units=6),
+			get_block(in_channel=128, depth=256, num_units=9),
 			get_block(in_channel=256, depth=512, num_units=3)
 		]
 	elif num_layers == 100:
