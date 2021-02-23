@@ -1,6 +1,6 @@
 from collections import namedtuple
 import torch
-from torch.nn import Conv2d, BatchNorm2d, PReLU, ReLU, Sigmoid, MaxPool2d, AdaptiveAvgPool2d, Sequential, Module
+from torch.nn import Conv2d, BatchNorm2d, PReLU, ReLU, Sigmoid, MaxPool2d, AdaptiveAvgPool2d, Sequential, Module, InstanceNorm2d
 
 """
 ArcFace implementation from [TreB1eN](https://github.com/TreB1eN/InsightFace_Pytorch)
@@ -108,12 +108,12 @@ class bottleneck_IR_SE(Module):
 			Conv2d(in_channel, depth, kernel_size=1, stride=1, padding=0, bias=False),
 			Conv2d(depth, depth, kernel_size=3, stride=1, padding=1, bias=False, groups=depth),
 			PReLU(depth),
-			BatchNorm2d(depth),
+			InstanceNorm2d(depth),
 			Conv2d(depth, depth, kernel_size=1, stride=1, padding=0, bias=False),
 			Conv2d(depth, depth, kernel_size=3, stride=stride, padding=1, bias=False, groups=depth),
 			SEModule(depth, 16),
 			PReLU(depth),
-			BatchNorm2d(depth)
+			InstanceNorm2d(depth)
 		)
 
 	def forward(self, x):
