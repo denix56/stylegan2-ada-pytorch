@@ -108,12 +108,12 @@ class bottleneck_IR_SE(Module):
 			Conv2d(in_channel, depth, kernel_size=1, stride=1, padding=0, bias=False),
 			Conv2d(depth, depth, kernel_size=3, stride=1, padding=1, bias=False, groups=depth),
 			PReLU(depth),
-			BatchNorm2d(in_channel),
+			BatchNorm2d(depth),
 			Conv2d(depth, depth, kernel_size=1, stride=1, padding=0, bias=False),
 			Conv2d(depth, depth, kernel_size=3, stride=stride, padding=1, bias=False, groups=depth),
 			SEModule(depth, 16),
 			PReLU(depth),
-			BatchNorm2d(in_channel)
+			BatchNorm2d(depth)
 		)
 
 	def forward(self, x):
