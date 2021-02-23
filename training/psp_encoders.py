@@ -26,13 +26,13 @@ class GradualStyleBlock(Module):
         self.linear = FullyConnectedLayer(out_c, out_c)
 
     def forward(self, x):
-        print(x.shape)
         x = self.convs(x)
         print(x.shape)
-        x = x.view(-1, self.out_c)
+        x = x.flatten(1, -1)
         print(x.shape)
         x = self.linear(x)
         print(x.shape)
+        print('*********************************')
         return x
 
 
@@ -109,12 +109,10 @@ class GradualStyleEncoder(Module):
             latents.append(self.styles[j](c3))
 
         p2 = self._upsample_add(c3, self.latlayer1(c2))
-        print(p2.shape)
         for j in range(self.coarse_ind, self.middle_ind):
             latents.append(self.styles[j](p2))
 
         p1 = self._upsample_add(p2, self.latlayer2(c1))
-        print(p1.shape)
         for j in range(self.middle_ind, self.style_count):
             latents.append(self.styles[j](p1))
 
