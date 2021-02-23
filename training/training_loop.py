@@ -576,7 +576,8 @@ def training_loop_encoder(
             # Accumulate gradients over multiple rounds.
             for round_idx, (real_img, real_c) in enumerate(zip(phase_real_img, phase_real_c)):
                 sync = (round_idx == batch_size // (batch_gpu * num_gpus) - 1)
-                loss.accumulate_gradients(phase=phase.name, real_img=real_img, real_c=real_c, sync=sync)
+                loss.accumulate_gradients(phase=phase.name, real_img=real_img, real_c=real_c,
+                                          gen_z=None, gen_c=None, gain=None, sync=sync)
 
             # Update weights.
             phase.module.requires_grad_(False)
