@@ -411,10 +411,10 @@ def setup_training_loop_encoder_kwargs(
         raise UserError('--gpus must be a power of two')
     if gpu_ids is None:
         args.num_gpus = gpus
-        args.rank_gpu_map = None
+        rank_gpu_map = None
     else:
         args.num_gpus = len(gpu_ids)
-        args.rank_gpu_map = gpu_ids
+        rank_gpu_map = gpu_ids
         print(gpu_ids)
 
     if snap is None:
@@ -608,7 +608,7 @@ def setup_training_loop_encoder_kwargs(
             raise UserError('--workers must be at least 1')
         args.data_loader_kwargs.num_workers = workers
 
-    return desc, args
+    return desc, rank_gpu_map, args
 
 #----------------------------------------------------------------------------
 
@@ -747,7 +747,7 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
         if not encoder_mode:
             run_desc, args = setup_training_loop_kwargs(**config_kwargs)
         else:
-            run_desc, args = setup_training_loop_encoder_kwargs(**config_kwargs)
+            run_desc, rank_gpu_map, args = setup_training_loop_encoder_kwargs(**config_kwargs)
     except UserError as err:
         ctx.fail(err)
 
@@ -794,7 +794,7 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
         if args.num_gpus == 1:
             subprocess_fn(rank=0, args=args, temp_dir=temp_dir, encoder_mode=encoder_mode)
         else:
-            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode, args.rank_gpu_map),
+            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode, rank_gpu_map),
                                         nprocs=args.num_gpus)
 
 #----------------------------------------------------------------------------
