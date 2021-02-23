@@ -174,9 +174,8 @@ class PSPLoss(Loss):
         with torch.autograd.profiler.record_function('Emain_forward'):
             codes = self.run_E(real_img, real_c, sync=sync)
             gen_img, _gen_ws = self.run_G(codes, real_c, sync=sync)
-            l1 = self.lpips_loss(gen_img, real_img)
+            l1 = self.lpips_loss(gen_img, real_img).mean()
             l2 = self.mse_loss(gen_img, real_img)
-            print(l1.shape, l2.shape)
             loss = l1 + l2
             training_stats.report('Loss/E/loss', loss)
         with torch.autograd.profiler.record_function('Emain_backward'):
