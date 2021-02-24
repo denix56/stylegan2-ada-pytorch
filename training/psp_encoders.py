@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU, Embedding
+from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU, Embedding, MaxPool2d
 
 from .helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE, FPN101
 from .networks import FullyConnectedLayer
@@ -41,12 +41,15 @@ class GradualStyleBlock(Module):
         return x
 
 
+
 class GradualStyleEncoder2(Module):
     def __init__(self, input_nc=3):
         super(GradualStyleEncoder2, self).__init__()
 
         self.fpn = FPN101(input_nc)
         self.embed = Embedding(18, 512)
+
+        self.pool = MaxPool2d(2, 2)
 
         self.map2style1 = Sequential(
             Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
@@ -82,10 +85,10 @@ class GradualStyleEncoder2(Module):
         )
 
         self.last1 = Sequential(
-            Conv2d(1024, 512, kernel_size=1, stride=1, padding=0),
+            FullyConnectedLayer(1024, 512),
             LeakyReLU(inplace=True),
             InstanceNorm2d(512),
-            Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            FullyConnectedLayer(512, 512),
             LeakyReLU(inplace=True),
             InstanceNorm2d(512)
         )
@@ -106,24 +109,26 @@ class GradualStyleEncoder2(Module):
 
         p4 = self.map2style2(p4)
         p4 = self.map2style3(p4)
-        p4 = torch.cat((p3, p4), dim=1)
+        p4 = torch.cat((p3, p4), dim=1).view(-1, 512)
         p4 = self.last1(p4)
 
         p5 = self.map2style3(p5)
-        p5 = torch.cat((p4, p5), dim=1)
+        p5 = torch.cat((p4, p5), dim=1).view(-1, 512)
         p5 = self.last1(p5)
+
+        p3 = p3.view(-1, 512)
         print(p3.shape, p4.shape, p5.shape)
         indices = torch.arange(0, 18, device=x.device)
         p_list = []
 
         for i in indices[:6]:
-            embd = self.embed(i)[..., None, None]
+            embd = self.embed(i)
             p_list.append(self.last2(torch.cat((p3, embd), dim=1)))
         for i in indices[6:12]:
-            embd = self.embed(i)[..., None, None]
+            embd = self.embed(i)
             p_list.append(self.last2(torch.cat((p4, embd), dim=1)))
         for i in indices[12:18]:
-            embd = self.embed(i)[..., None, None]
+            embd = self.embed(i)
             p_list.append(self.last2(torch.cat((p5, embd), dim=1)))
 
         out = torch.stack(p_list, dim=1)
