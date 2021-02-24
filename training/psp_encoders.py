@@ -87,15 +87,12 @@ class GradualStyleEncoder2(Module):
         self.last1 = Sequential(
             FullyConnectedLayer(1024, 512),
             LeakyReLU(inplace=True),
-            InstanceNorm1d(512)
         )
         self.last2 = Sequential(
             FullyConnectedLayer(1024, 512),
             LeakyReLU(inplace=True),
-            InstanceNorm1d(512),
             FullyConnectedLayer(512, 512),
             LeakyReLU(inplace=True),
-            InstanceNorm1d(512),
             FullyConnectedLayer(512, 512)
         )
 
