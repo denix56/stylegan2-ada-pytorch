@@ -109,11 +109,12 @@ class GradualStyleEncoder2(Module):
 
         p4 = self.map2style2(p4)
         p4 = self.map2style3(p4)
-        p4 = torch.cat((p3, p4), dim=1).view(-1, 512)
+        p4 = torch.cat((p3, p4), dim=1).view(-1, 1024)
+        print(p4.shape)
         p4 = self.last1(p4)
 
         p5 = self.map2style3(p5)
-        p5 = torch.cat((p4, p5), dim=1).view(-1, 512)
+        p5 = torch.cat((p4, p5), dim=1).view(-1, 1024)
         p5 = self.last1(p5)
 
         p3 = p3.view(-1, 512)
