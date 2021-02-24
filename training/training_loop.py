@@ -595,6 +595,7 @@ def training_loop_encoder(
             if phase.start_event is not None:
                 phase.start_event.record(torch.cuda.current_stream(device))
             phase.opt.zero_grad(set_to_none=True)
+            G.zero_grad(set_to_none=True)
             phase.module.requires_grad_(True)
             G.requires_grad_(True)
 
