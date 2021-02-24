@@ -126,7 +126,7 @@ class FPN(Module):
         self.smooth2 = Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
 
         # Lateral layers
-        self.latlayer1 = Conv2d(1024, 512, kernel_size=1, stride=1, padding=0)
+        self.latlayer1 = Conv2d(512, 512, kernel_size=1, stride=1, padding=0)
         self.latlayer2 = Conv2d( 512, 512, kernel_size=1, stride=1, padding=0)
 
     def _make_layer(self, block, planes, num_blocks, stride):
