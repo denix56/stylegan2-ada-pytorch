@@ -146,6 +146,10 @@ class PSPLoss(Loss):
         self.lpips_loss = lpips.LPIPS(net='vgg').to(device)
         self.mse_loss = nn.MSELoss().to(device)
 
+        self.lambda1 = 0.02
+        self.lambda2 = 0.7
+
+
     def run_G(self, codes, c, sync, truncation_psi=1, truncation_cutoff=None):
         with misc.ddp_sync(self.G_mapping, sync):
             for i in range(codes.shape[1]):
@@ -173,7 +177,7 @@ class PSPLoss(Loss):
             gen_img, _gen_ws = self.run_G(codes, real_c, sync=sync)
             l1 = self.lpips_loss(gen_img, real_img).mean()
             l2 = self.mse_loss(gen_img, real_img)
-            loss = l1 + l2
+            loss = self.lambda1*l1 + self.lambda2*l2
             training_stats.report('Loss/E/loss', loss)
         with torch.autograd.profiler.record_function('Emain_backward'):
             loss.backward()
