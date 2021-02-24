@@ -120,6 +120,8 @@ class GradualStyleEncoder2(Module):
         print(indices.shape)
         p = torch.repeat_interleave(torch.stack((p3, p4, p5), dim=1).unsqueeze(2), 6, dim=2).flatten(1, 2)
         print(p.shape)
+        p, indices = torch.broadcast_tensors(p, indices)
+        print(p.shape, indices.shape)
         p = torch.cat((p, indices), dim=-1)
         print(p.shape)
         out = self.last2(p)
