@@ -75,7 +75,7 @@ class SEModule(Module):
 
 
 class bottleneck_ORIG(Module):
-    expansion = 4
+    expansion = 2
 
     def __init__(self, in_channel, depth, stride):
         super(bottleneck_ORIG, self).__init__()
@@ -174,7 +174,7 @@ class FPN(Module):
         return p3, p4, p5
 
 def FPN101(input_nc):
-    return FPN(bottleneck_ORIG, input_nc, [2, 2, 2, 2])
+    return FPN(bottleneck_ORIG, input_nc, [2, 2, 2, 1])
 
 class bottleneck_IR(Module):
     def __init__(self, in_channel, depth, stride):
