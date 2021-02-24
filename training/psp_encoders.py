@@ -2,7 +2,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU, Embedding, MaxPool2d, InstanceNorm1d
+from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU, Embedding, \
+    MaxPool2d, InstanceNorm1d, GRU
 
 from .helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE, FPN101
 from .networks import FullyConnectedLayer
@@ -47,9 +48,6 @@ class GradualStyleEncoder2(Module):
         super(GradualStyleEncoder2, self).__init__()
 
         self.fpn = FPN101(input_nc)
-        self.embed = Embedding(18, 512)
-
-        self.pool = MaxPool2d(2, 2)
 
         self.map2style1 = Sequential(
             Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
@@ -84,21 +82,22 @@ class GradualStyleEncoder2(Module):
             InstanceNorm2d(512),
         )
 
-        self.last1 = Sequential(
-            Linear(1024, 512),
-            LeakyReLU(inplace=True),
+        self.embed = Embedding(18, 128)
+        self.expand_layer = Sequential(
+            nn.Linear(512+128, 512),
+            nn.LeakyReLU(inplace=True),
         )
-        self.last2 = Sequential(
+
+        self.rnn = GRU(512, 512, num_layers=2, batch_first=True, bidirectional=True)
+
+        self.last = Sequential(
             Linear(1024, 512),
-            LeakyReLU(inplace=True),
-            Linear(512, 512),
             LeakyReLU(inplace=True),
             Linear(512, 512)
         )
 
     def forward(self, x):
         p3, p4, p5 = self.fpn(x)
-        print(p3.shape, p4.shape, p5.shape)
         p3 = self.map2style1(p3)
         p3 = self.map2style2(p3)
         p3 = self.map2style3(p3)
@@ -107,24 +106,19 @@ class GradualStyleEncoder2(Module):
         p4 = self.map2style2(p4)
         p4 = self.map2style3(p4)
         p4 = p4.view((-1, 512))
-        p4 = torch.cat((p3, p4), dim=1).view(-1, 1024)
-        p4 = self.last1(p4)
 
         p5 = self.map2style3(p5)
         p5 = p5.view(-1, 512)
-        p5 = torch.cat((p4, p5), dim=1).view(-1, 1024)
-        p5 = self.last1(p5)
 
-        print(p3.shape, p4.shape, p5.shape)
         indices = self.embed(torch.arange(0, 18, device=x.device))[None, ...]
-        print(indices.shape)
         p = torch.repeat_interleave(torch.stack((p3, p4, p5), dim=1).unsqueeze(2), 6, dim=2).flatten(1, 2)
-        print(p.shape)
         p, indices = torch.broadcast_tensors(p, indices)
-        print(p.shape, indices.shape)
         p = torch.cat((p, indices), dim=-1)
-        print(p.shape)
-        out = self.last2(p)
+        p = self.expand_layer(p)
+        out, h = self.rnn(p)
+
+        out = self.last2(out)
+        print(out.shape, out)
         return out
 
 
