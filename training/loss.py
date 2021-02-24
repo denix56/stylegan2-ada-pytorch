@@ -147,8 +147,8 @@ class PSPLoss(Loss):
         self.mse_loss = nn.MSELoss().to(device)
         self.l1_loss = nn.SmoothL1Loss().to(device)
 
-        self.lambda1 = 0.01
-        self.lambda2 = 0.7
+        self.lambda1 = 0.02
+        self.lambda2 = 0.01
         self.lambda3 = 0.01
 
 
@@ -180,7 +180,11 @@ class PSPLoss(Loss):
             codes_gen = self.run_E(gen_img, real_c, sync=sync)
             l1 = self.lpips_loss(gen_img, real_img).mean()
             l2 = self.mse_loss(gen_img, real_img)
-            loss = self.lambda1*l1 + self.lambda2*l2 + self.lambda3*self.l1_loss(codes_gen, codes)
+            l3 = self.l1_loss(codes_gen, codes)
+            loss = self.lambda1*l1 + self.lambda2*l2 + self.lambda3*l3
+            training_stats.report('Loss/E/loss1', l1)
+            training_stats.report('Loss/E/loss2', l2)
+            training_stats.report('Loss/E/loss3', l3)
             training_stats.report('Loss/E/loss', loss)
         with torch.autograd.profiler.record_function('Emain_backward'):
             loss.backward()
