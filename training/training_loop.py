@@ -545,7 +545,7 @@ def training_loop_encoder(
                 images = []
                 for real_img, real_c in zip(real_imgs, real_cs):
                     codes = E(real_img, real_c)
-                    images.append(G(codes, c=real_c).cpu())
+                    images.append(G(codes, c=real_c, noise_mode='none').cpu())
                 images = torch.cat(images, dim=0).numpy()
                 save_image_grid(images, os.path.join(run_dir, f'fakes_init.jpg'), drange=[-1, 1], grid_size=grid_size)
                 E.train()
@@ -659,7 +659,7 @@ def training_loop_encoder(
                 images = []
                 for real_img, real_c in zip(real_imgs, real_cs):
                     codes = E(real_img, real_c)
-                    images.append(G(codes, c=real_c).cpu())
+                    images.append(G(codes, c=real_c, noise_mode='none').cpu())
                 images = torch.cat(images, dim=0).numpy()
                 save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.jpg'), drange=[-1,1], grid_size=grid_size)
                 E.train()

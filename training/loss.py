@@ -164,7 +164,7 @@ class PSPLoss(Loss):
                                            broadcast=False))
                 ws = torch.stack(ws, dim=1)
         with misc.ddp_sync(self.G_synthesis, sync):
-            img = self.G_synthesis(ws)
+            img = self.G_synthesis(ws, noise_mode='none')
         return img, ws
 
     def run_E(self, img, c, sync):
