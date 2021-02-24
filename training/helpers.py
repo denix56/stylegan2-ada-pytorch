@@ -83,7 +83,7 @@ class bottleneck_ORIG(Module):
         planes = depth
         self.conv1 = Conv2d(in_planes, planes, kernel_size=1, bias=False)
         self.bn1 = InstanceNorm2d(planes)
-        self.conv2 = Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False, groups=planes)
+        self.conv2 = Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn2 = InstanceNorm2d(planes)
         self.conv3 = Conv2d(planes, self.expansion*planes, kernel_size=1, bias=False)
         self.bn3 = InstanceNorm2d(self.expansion*planes)
