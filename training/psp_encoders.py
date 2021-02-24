@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU, Embedding, MaxPool2d
+from torch.nn import Linear, Conv2d, InstanceNorm2d, PReLU, Sequential, Module, LeakyReLU, Embedding, MaxPool2d, InstanceNorm1d
 
 from .helpers import get_blocks, Flatten, bottleneck_IR, bottleneck_IR_SE, FPN101
 from .networks import FullyConnectedLayer
@@ -85,20 +85,19 @@ class GradualStyleEncoder2(Module):
         )
 
         self.last1 = Sequential(
-            Linear(1024, 512),
+            FullyConnectedLayer(1024, 512),
             LeakyReLU(inplace=True),
-            InstanceNorm2d(512)
+            InstanceNorm1d(512)
         )
         self.last2 = Sequential(
-            Linear(1024, 512),
+            FullyConnectedLayer(1024, 512),
             LeakyReLU(inplace=True),
-            InstanceNorm2d(512),
-            Linear(512, 512),
+            InstanceNorm1d(512),
+            FullyConnectedLayer(512, 512),
             LeakyReLU(inplace=True),
-            InstanceNorm2d(512)
+            InstanceNorm1d(512),
+            FullyConnectedLayer(512, 512)
         )
-
-        self.linear = Linear(512, 512)
 
     def forward(self, x):
         p3, p4, p5 = self.fpn(x)
@@ -119,20 +118,13 @@ class GradualStyleEncoder2(Module):
 
         p3 = p3.view(-1, 512)
         print(p3.shape, p4.shape, p5.shape)
-        indices = torch.arange(0, 18, device=x.device)
-        p_list = []
-
-        for i in indices[:6]:
-            embd = self.embed(i)
-            p_list.append(self.last2(torch.cat((p3, embd), dim=1)))
-        for i in indices[6:12]:
-            embd = self.embed(i)
-            p_list.append(self.last2(torch.cat((p4, embd), dim=1)))
-        for i in indices[12:18]:
-            embd = self.embed(i)
-            p_list.append(self.last2(torch.cat((p5, embd), dim=1)))
-
-        out = torch.stack(p_list, dim=1)
+        indices = self.embed(torch.arange(0, 18, device=x.device))[None, ...]
+        print(indices.shape)
+        p = torch.repeat_interleave(torch.stack((p3, p4, p5), dim=1).unsqueeze(2), 6, dim=2).flatten(1, 2)
+        print(p.shape)
+        p = torch.cat((p, indices))
+        print(p.shape)
+        out = self.last2(p)
         out = self.linear(out)
         return out
 
