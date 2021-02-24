@@ -125,7 +125,6 @@ class GradualStyleEncoder2(Module):
         p = torch.cat((p, indices), dim=-1)
         print(p.shape)
         out = self.last2(p)
-        out = self.linear(out)
         return out
 
 
