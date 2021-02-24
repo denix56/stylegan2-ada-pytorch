@@ -117,7 +117,6 @@ class GradualStyleEncoder2(Module):
         out, h = self.rnn(p)
 
         out = self.last(out)
-        print(out.shape, out)
         return out
 
 
