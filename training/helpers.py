@@ -83,7 +83,7 @@ class bottleneck_ORIG(Module):
         planes = depth
         self.conv1 = Conv2d(in_planes, planes, kernel_size=1, bias=False)
         self.bn1 = InstanceNorm2d(planes)
-        self.conv2 = Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv2 = Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False, groups=planes)
         self.bn2 = InstanceNorm2d(planes)
         self.conv3 = Conv2d(planes, self.expansion*planes, kernel_size=1, bias=False)
         self.bn3 = InstanceNorm2d(self.expansion*planes)
@@ -119,14 +119,14 @@ class FPN(Module):
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
 
         # Top layer
-        self.toplayer = Conv2d(1024, 512, kernel_size=1, stride=1, padding=0)  # Reduce channels
+        self.toplayer = Conv2d(2048, 512, kernel_size=1, stride=1, padding=0)  # Reduce channels
 
         # Smooth layers
         self.smooth1 = Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
         self.smooth2 = Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
 
         # Lateral layers
-        self.latlayer1 = Conv2d(512, 512, kernel_size=1, stride=1, padding=0)
+        self.latlayer1 = Conv2d(1024, 512, kernel_size=1, stride=1, padding=0)
         self.latlayer2 = Conv2d( 512, 512, kernel_size=1, stride=1, padding=0)
 
     def _make_layer(self, block, planes, num_blocks, stride):
@@ -174,7 +174,7 @@ class FPN(Module):
         return p3, p4, p5
 
 def FPN101(input_nc):
-    return FPN(bottleneck_ORIG, input_nc, [2, 2, 2, 1])
+    return FPN(bottleneck_ORIG, input_nc, [2, 2, 2, 2])
 
 class bottleneck_IR(Module):
     def __init__(self, in_channel, depth, stride):
