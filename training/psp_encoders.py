@@ -110,9 +110,8 @@ class GradualStyleEncoder2(Module):
         p5 = self.map2style3(p5)
         p5 = p5.view(-1, 512)
 
-        indices = self.embed(torch.arange(0, 18, device=x.device))[None, ...]
+        indices = torch.repeat_interleave(self.embed(torch.arange(0, 18, device=x.device))[None, ...], x.size(0), dim=0)
         p = torch.repeat_interleave(torch.stack((p3, p4, p5), dim=1).unsqueeze(2), 6, dim=2).flatten(1, 2)
-        p, indices = torch.broadcast_tensors(p, indices)
         p = torch.cat((p, indices), dim=-1)
         p = self.expand_layer(p)
         out, h = self.rnn(p)
