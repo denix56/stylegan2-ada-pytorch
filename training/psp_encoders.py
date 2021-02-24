@@ -85,20 +85,20 @@ class GradualStyleEncoder2(Module):
         )
 
         self.last1 = Sequential(
-            FullyConnectedLayer(1024, 512),
-            LeakyReLU(inplace=True),
-            InstanceNorm2d(512),
-            FullyConnectedLayer(512, 512),
+            Linear(1024, 512),
             LeakyReLU(inplace=True),
             InstanceNorm2d(512)
         )
         self.last2 = Sequential(
-            FullyConnectedLayer(1024, 512),
+            Linear(1024, 512),
+            LeakyReLU(inplace=True),
+            InstanceNorm2d(512),
+            Linear(512, 512),
             LeakyReLU(inplace=True),
             InstanceNorm2d(512)
         )
 
-        self.linear = FullyConnectedLayer(512, 512)
+        self.linear = Linear(512, 512)
 
     def forward(self, x):
         p3, p4, p5 = self.fpn(x)
