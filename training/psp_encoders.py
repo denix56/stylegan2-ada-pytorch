@@ -117,6 +117,8 @@ class GradualStyleEncoder2(Module):
         out, h = self.rnn(p)
 
         out = self.last(out)
+        out = (out - torch.mean(out, dim=-1)) / (torch.std(out, dim=-1) + 1e-5)
+
         return out
 
 
