@@ -119,7 +119,7 @@ class FPN(Module):
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
 
         # Top layer
-        self.toplayer = Conv2d(2048, 512, kernel_size=1, stride=1, padding=0)  # Reduce channels
+        self.toplayer = Conv2d(1024, 512, kernel_size=1, stride=1, padding=0)  # Reduce channels
 
         # Smooth layers
         self.smooth1 = Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
