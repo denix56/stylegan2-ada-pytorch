@@ -75,7 +75,7 @@ class SEModule(Module):
 
 
 class bottleneck_ORIG(Module):
-    expansion = 2
+    expansion = 4
 
     def __init__(self, in_channel, depth, stride):
         super(bottleneck_ORIG, self).__init__()
