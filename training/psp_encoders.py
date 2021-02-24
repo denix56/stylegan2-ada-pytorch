@@ -116,7 +116,7 @@ class GradualStyleEncoder2(Module):
         p = self.expand_layer(p)
         out, h = self.rnn(p)
 
-        out = self.last2(out)
+        out = self.last(out)
         print(out.shape, out)
         return out
 
