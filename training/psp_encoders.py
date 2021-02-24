@@ -82,9 +82,9 @@ class GradualStyleEncoder2(Module):
             InstanceNorm2d(512),
         )
 
-        self.embed = Embedding(18, 128)
+        self.embed = Embedding(18, 64)
         self.expand_layer = Sequential(
-            nn.Linear(512+128, 512),
+            nn.Linear(512+64, 512),
             nn.LeakyReLU(inplace=True),
         )
 
@@ -114,7 +114,7 @@ class GradualStyleEncoder2(Module):
         p = torch.repeat_interleave(torch.stack((p3, p4, p5), dim=1).unsqueeze(2), 6, dim=2).flatten(1, 2)
         p = torch.cat((p, indices), dim=-1)
         p = self.expand_layer(p)
-        out, h = self.rnn(p)
+        out, _ = self.rnn(p)
 
         out = self.last(out)
 
