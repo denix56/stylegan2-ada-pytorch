@@ -487,7 +487,7 @@ def training_loop_encoder(
         print(f'Resuming from "{resume_pkl}"')
         with dnnlib.util.open_url(resume_pkl) as f:
             resume_data = legacy.load_network_pkl(f)
-        for name, module in [('G', G)]:
+        for name, module in [('G_ema', G)]:
             misc.copy_params_and_buffers(resume_data[name], module, require_all=False)
 
     # Print network summary tables.
@@ -596,6 +596,7 @@ def training_loop_encoder(
                 phase.start_event.record(torch.cuda.current_stream(device))
             phase.opt.zero_grad(set_to_none=True)
             phase.module.requires_grad_(True)
+            G.requires_grad_(True)
 
             # Accumulate gradients over multiple rounds.
             for round_idx, (real_img, real_c) in enumerate(zip(phase_real_img, phase_real_c)):
@@ -605,6 +606,7 @@ def training_loop_encoder(
 
             # Update weights.
             phase.module.requires_grad_(False)
+            G.requires_grad_(False)
             with torch.autograd.profiler.record_function(phase.name + '_opt'):
                 for param in phase.module.parameters():
                     if param.grad is not None:
