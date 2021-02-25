@@ -17,6 +17,7 @@ import gzip
 import zipfile
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
+from joblib import Parallel, delayed
 
 import click
 import numpy as np
@@ -24,6 +25,26 @@ import PIL.Image
 from tqdm import tqdm
 
 #----------------------------------------------------------------------------
+
+
+class ProgressParallel(Parallel):
+    def __init__(self, use_tqdm=True, total=None, *args, **kwargs):
+        self._use_tqdm = use_tqdm
+        self._total = total
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        with tqdm(disable=not self._use_tqdm, total=self._total) as self._pbar:
+            return Parallel.__call__(self, *args, **kwargs)
+
+    def print_progress(self):
+        if self._total is None:
+            self._pbar.total = self.n_dispatched_tasks
+        self._pbar.n = self.n_completed_tasks
+        self._pbar.refresh()
+
+#----------------------------------------------------------------------------
+
 
 def error(msg):
     print('Error: ' + msg)
@@ -334,6 +355,7 @@ def open_dest(dest: str) -> Tuple[str, Callable[[str, Union[bytes, str]], None],
 @click.option('--transform', help='Input crop/resize mode', type=click.Choice(['center-crop', 'center-crop-wide', 'pad']))
 @click.option('--width', help='Output width', type=int)
 @click.option('--height', help='Output height', type=int)
+@click.option('--workers', help='Number of workers to use', default=0, type=int)
 def convert_dataset(
     ctx: click.Context,
     source: str,
@@ -342,7 +364,8 @@ def convert_dataset(
     transform: Optional[str],
     resize_filter: str,
     width: Optional[int],
-    height: Optional[int]
+    height: Optional[int],
+    workers: Optional[int]
 ):
     """Convert an image dataset into a dataset archive usable with StyleGAN2 ADA PyTorch.
 
@@ -413,10 +436,30 @@ def convert_dataset(
 
     transform_image = make_transform(transform, width, height, resize_filter)
 
-    dataset_attrs = None
+    def get_dataset_attrs(input_iter, transform_image):
+        image = next(input_iter)
+        img = transform_image(image['img'])
+        channels = img.shape[2] if img.ndim == 3 else 1
+        cur_image_attrs = {
+            'width': img.shape[1],
+            'height': img.shape[0],
+            'channels': channels
+        }
+        dataset_attrs = cur_image_attrs
+        width = dataset_attrs['width']
+        height = dataset_attrs['height']
+        if width != height:
+            error(f'Image dimensions after scale and crop are required to be square.  Got {width}x{height}')
+        if dataset_attrs['channels'] not in [1, 3]:
+            error('Input images must be stored as RGB or grayscale')
+        if width != 2 ** int(np.floor(np.log2(width))):
+            error('Image width/height after scale and crop are required to be power-of-two')
 
-    labels = []
-    for idx, image in tqdm(enumerate(input_iter), total=num_files):
+        return dataset_attrs
+
+    dataset_attrs = get_dataset_attrs(input_iter, transform_image)
+
+    def worker_func(idx, image, dataset_attrs, transform_image):
         idx_str = f'{idx:08d}'
         archive_fname = f'{idx_str[:5]}/img{idx_str}.png'
 
@@ -425,7 +468,7 @@ def convert_dataset(
 
         # Transform may drop images.
         if img is None:
-            continue
+            return None
 
         # Error check to require uniform image attributes across
         # the whole dataset.
@@ -446,16 +489,25 @@ def convert_dataset(
             if width != 2 ** int(np.floor(np.log2(width))):
                 error('Image width/height after scale and crop are required to be power-of-two')
         elif dataset_attrs != cur_image_attrs:
-            err = [f'  dataset {k}/cur image {k}: {dataset_attrs[k]}/{cur_image_attrs[k]}' for k in dataset_attrs.keys()]
-            error(f'Image {archive_fname} attributes must be equal across all images of the dataset.  Got:\n' + '\n'.join(err))
+            err = [f'  dataset {k}/cur image {k}: {dataset_attrs[k]}/{cur_image_attrs[k]}' for k in
+                   dataset_attrs.keys()]
+            error(
+                f'Image {archive_fname} attributes must be equal across all images of the dataset.  Got:\n' + '\n'.join(
+                    err))
 
         # Save the image as an uncompressed PNG.
-        img = PIL.Image.fromarray(img, { 1: 'L', 3: 'RGB' }[channels])
+        img = PIL.Image.fromarray(img, {1: 'L', 3: 'RGB'}[channels])
         image_bits = io.BytesIO()
         img.save(image_bits, format='png', compress_level=0, optimize=False)
         save_bytes(os.path.join(archive_root_dir, archive_fname), image_bits.getbuffer())
-        labels.append([archive_fname, image['label']] if image['label'] is not None else None)
-        print([archive_fname, image['label']])
+        tup = (archive_fname, image['label'])
+        # print(tup)
+        return tup if image['label'] is not None else None
+
+    labels = ProgressParallel(n_jobs=workers, total=num_files)(delayed(worker_func)\
+                                                                    (idx, image, dataset_attrs, transform_image) \
+                                                                for idx, image in enumerate(input_iter))
+
 
     metadata = {
         'labels': labels if all(x is not None for x in labels) else None
