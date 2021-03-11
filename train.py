@@ -729,7 +729,7 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
       lsundog256     LSUN Dog trained at 256x256 resolution.
       <PATH or URL>  Custom network pickle.
     """
-    warnings.filterwarnings("error::UserWarning")
+    warnings.filterwarnings("error", category=UserWarning)
 
     dnnlib.util.Logger(should_flush=True)
     print(config_kwargs)
