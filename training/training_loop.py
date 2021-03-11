@@ -156,7 +156,7 @@ def training_loop(
     # Construct networks.
     # if rank == 0:
     #     print('Constructing networks...')
-    training_set_pl = StyleGANDataModule(batch_size, training_set_kwargs, data_loader_kwargs)
+    training_set_pl = StyleGANDataModule(batch_gpu, training_set_kwargs, data_loader_kwargs)
     training_set = training_set_pl.training_set
 
     common_kwargs = dict(c_dim=training_set.label_dim, img_resolution=training_set.resolution, img_channels=training_set.num_channels)
