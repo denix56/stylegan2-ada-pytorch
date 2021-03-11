@@ -70,7 +70,6 @@ class StyleGAN2(pl.LightningModule):
             for param in phase.module.parameters():
                 if param.grad is not None:
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
-            print(optimizer_closure)
             optimizer.step(closure=optimizer_closure)
 
     def on_validation_start(self):
@@ -94,10 +93,10 @@ class StyleGAN2(pl.LightningModule):
                 metric.reset()
 
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
-        ws = self.G_mapping(z, c)
+        ws = self.G.mapping(z, c)
         if self.style_mixing_prob > 0:
-            ws = self.style_mixing(z, c, ws)
-        img = self.G_synthesis(ws)
+            ws = self._style_mixing(z, c, ws)
+        img = self.G.synthesis(ws)
         return img, ws
 
     def _disc_run(self, img: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
