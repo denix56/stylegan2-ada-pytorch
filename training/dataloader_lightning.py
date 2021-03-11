@@ -28,7 +28,7 @@ class StyleGANDataModule(pl.LightningDataModule):
 
         imgs, _ = batch
         batch_size = imgs.shape[0]
-        all_gen_z = torch.randn([len(self.n_phases), batch_size, self.z_dim], device=imgs.device)
+        all_gen_z = torch.randn([self.n_phases, batch_size, self.z_dim], device=imgs.device)
         all_gen_c = self.training_set.get_label(np.random.randint(self.training_set.get_len(),
                                                 size=self.n_phases*batch_size))
         all_gen_c = all_gen_c.reshape((self.n_phases, batch_size) + all_gen_c.shape[1:])
