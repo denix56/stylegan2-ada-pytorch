@@ -83,7 +83,7 @@ class StyleGAN2(pl.LightningModule):
         if self.metrics:
             batch_size = batch.size(0)
             z = torch.randn((batch_size, self.G.z_dim), device=self.device)
-            indices = np.random.randint(len(self.training_set), size=batch_size)
+            indices = np.random.randint(self.training_set.get_len(), size=batch_size)
             c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)
             for metric in self.metrics:
                 metric(batch, z, c)
@@ -198,7 +198,7 @@ class StyleGAN2(pl.LightningModule):
 
     def _get_noise(self, batch_size: int) -> (torch.Tensor, torch.Tensor):
         all_gen_z = torch.randn([len(self.phases) * batch_size, self.G.z_dim], device=self.device)
-        all_gen_c = [self.training_set.get_label(np.random.randint(len(self.training_set))) for _ in
+        all_gen_c = [self.training_set.get_label(np.random.randint(self.training_set.get_len())) for _ in
                      range(len(self.phases) * batch_size)]
         all_gen_c = torch.tensor(np.stack(all_gen_c), device=self.device)
         return all_gen_z, all_gen_c
