@@ -127,10 +127,12 @@ class Dataset(torch.utils.data.IterableDataset):
         return image.copy(), self.get_label(idx)
 
     def get_label(self, idx):
+        idx = np.atleast_1d(idx)
+        assert len(idx.shape) == 1
         label = self._get_raw_labels()[self._raw_idx[idx]]
         if label.dtype == np.int64:
             onehot = np.zeros((len(idx), self.label_shape), dtype=np.float32)
-            onehot[label] = 1
+            onehot[np.arange(len(idx)), label] = 1
             label = onehot
         return label.copy()
 

@@ -193,7 +193,7 @@ def training_loop(
     fid50k = FID(max_real=None, num_gen=50000)
 
     net = StyleGAN2(G=G, D=D, G_opt_kwargs=G_opt_kwargs, D_opt_kwargs=D_opt_kwargs, augment_pipe=augment_pipe,
-                    training_set=training_set, batch_size=batch_gpu, G_reg_interval=G_reg_interval, D_reg_interval=D_reg_interval,
+                    datamodule=training_set_pl, batch_size=batch_gpu, G_reg_interval=G_reg_interval, D_reg_interval=D_reg_interval,
                     ema_kimg=ema_kimg, ema_rampup=ema_rampup, metrics=[fid50k], **loss_kwargs)
 
     trainer = pl.Trainer(gpus=num_gpus, accelerator='ddp', weights_summary='full', fast_dev_run=True,

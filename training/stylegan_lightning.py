@@ -9,10 +9,11 @@ from torch_utils.ops import conv2d_gradfix
 from functools import partial
 from torch_utils import misc
 from .metrics_lightning import StyleGANMetric
+from .dataloader_lightning import StyleGANDataModule
 
 
 class StyleGAN2(pl.LightningModule):
-    def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, training_set, batch_size,
+    def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, datamodule: StyleGANDataModule, batch_size,
                  style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2,
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
@@ -23,7 +24,7 @@ class StyleGAN2(pl.LightningModule):
         self._D_opt_kwargs = D_opt_kwargs
         self.augment_pipe = augment_pipe
 
-        self.training_set = training_set
+        self.datamodule = datamodule
         self.batch_size = batch_size
 
         self.G_reg_interval = G_reg_interval
@@ -45,16 +46,21 @@ class StyleGAN2(pl.LightningModule):
         assert all([isinstance(metric, StyleGANMetric) for metric in metrics])
         self.metrics = nn.ModuleList(metrics)
 
+    def setup(self, stage: str):
+        print(len(self.phases))
+        self.datamodule.setup_noise_params(len(self.phases), self.G.z_dim)
+
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, labels = batch
+        imgs, labels, all_gen_z, all_gen_c = batch
         imgs = imgs.to(torch.float32) / 127.5 - 1
 
         phase = self.phases[optimizer_idx]
-        loss = phase.loss(imgs, labels)
+        loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
         return loss
 
-    def training_step_end(self, training_step_outputs):
+    def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         # Update G_ema.
+        print(len(batch), len(outputs))
         ema_nimg = self.ema_kimg * 1000
         if self.ema_rampup is not None:
             ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
@@ -77,7 +83,8 @@ class StyleGAN2(pl.LightningModule):
 
     def on_validation_start(self):
         if self.metrics:
-            opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.training_set.name, device=self.device, G=self.G_ema)
+            opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.datamodule.name,
+                                   device=self.device, G=self.G_ema)
             for metric in self.metrics:
                 metric.prepare(opts)
 
@@ -169,8 +176,8 @@ class StyleGAN2(pl.LightningModule):
         return (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain)
 
     def _gen_loss(self, real_img: torch.Tensor,
-                  real_c: torch.Tensor, gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
-        gen_z, gen_c = self._get_noise(real_img.shape[0])
+                  real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
+                  gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         loss = None
         do_reg = do_reg and self.pl_weight != 0
 
@@ -184,12 +191,12 @@ class StyleGAN2(pl.LightningModule):
             loss = torch.zeros(1, device=self.device)
         return loss
 
-    def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gain: int,
-                   do_main: bool, do_reg: bool) -> torch.Tensor:
+    def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
+                   gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         do_reg = do_reg and self.r1_gamma != 0
         loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=do_main, do_reg=do_reg)
         if do_main:
-            loss += self._disc_main_loss(real_img, real_c, gain)
+            loss += self._disc_main_loss(gen_z, gen_c, gain)
         return loss
 
     def _style_mixing(self, z: torch.Tensor, c: torch.Tensor, ws: torch.Tensor) -> torch.Tensor:
@@ -198,13 +205,6 @@ class StyleGAN2(pl.LightningModule):
                              torch.full_like(cutoff, ws.shape[1]))
         ws[:, cutoff:] = self.G.mapping(torch.randn_like(z), c, skip_w_avg_update=True)[:, cutoff:]
         return ws
-
-    def _get_noise(self, batch_size: int) -> (torch.Tensor, torch.Tensor):
-        all_gen_z = torch.randn([len(self.phases) * batch_size, self.G.z_dim], device=self.device)
-        all_gen_c = [self.training_set.get_label(np.random.randint(self.training_set.get_len())) for _ in
-                     range(len(self.phases) * batch_size)]
-        all_gen_c = torch.tensor(np.stack(all_gen_c), device=self.device)
-        return all_gen_z, all_gen_c
 
     def configure_optimizers(self):
         self.phases = []
