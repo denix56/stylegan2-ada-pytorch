@@ -21,7 +21,8 @@ except ImportError:
 
 #----------------------------------------------------------------------------
 
-class Dataset(torch.utils.data.Dataset):
+
+class Dataset(torch.utils.data.IterableDataset):
     def __init__(self,
         name,                   # Name of the dataset.
         raw_shape,              # Shape of the raw image data (NCHW).
@@ -29,12 +30,16 @@ class Dataset(torch.utils.data.Dataset):
         use_labels  = False,    # Enable conditioning labels? False = label dimension is zero.
         xflip       = False,    # Artificially double the size of the dataset via x-flips. Applied after max_size.
         random_seed = 0,        # Random seed to use when applying max_size.
+        shuffle     = False,
+        window_size = 0.5
     ):
         self._name = name
         self._raw_shape = list(raw_shape)
         self._use_labels = use_labels
         self._raw_labels = None
         self._label_shape = None
+        self.shuffle = shuffle
+        self.window_size = window_size
 
         # Apply max_size.
         self._raw_idx = np.arange(self._raw_shape[0], dtype=np.int64)
@@ -79,23 +84,51 @@ class Dataset(torch.utils.data.Dataset):
         except:
             pass
 
-    def __len__(self):
+    def get_len(self):
         return self._raw_idx.size
 
-    def __getitem__(self, idx):
+    def __iter__(self):
+        end = self.get_len()
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:  # single-process data loading, return the full
+            rank = 0
+        else:  # in a worker process
+            # split workload
+            rank = worker_info.id
+
+        order = np.arange(self.get_len())
+        rnd = None
+        window = 0
+        if self.shuffle:
+            rnd = np.random.RandomState(worker_info.seed)
+            rnd.shuffle(order)
+            window = int(np.rint(order.size * self.window_size))
+
+        idx = 0
+        while True:
+            i = idx % order.size
+            if idx % worker_info.num_workers == rank:
+                yield self._get_data(order[i])
+            if window >= 2:
+                j = (i - rnd.randint(window)) % order.size
+                order[i], order[j] = order[j], order[i]
+            idx += 1
+
+    def _get_data(self, idx):
         image = self._load_raw_image(self._raw_idx[idx])
         assert isinstance(image, np.ndarray)
         assert list(image.shape) == self.image_shape
         assert image.dtype == np.uint8
         if self._xflip[idx]:
-            assert image.ndim == 3 # CHW
+            assert image.ndim == 3  # CHW
             image = image[:, :, ::-1]
+
         return image.copy(), self.get_label(idx)
 
     def get_label(self, idx):
         label = self._get_raw_labels()[self._raw_idx[idx]]
         if label.dtype == np.int64:
-            onehot = np.zeros(self.label_shape, dtype=np.float32)
+            onehot = np.zeros((len(idx), self.label_shape), dtype=np.float32)
             onehot[label] = 1
             label = onehot
         return label.copy()

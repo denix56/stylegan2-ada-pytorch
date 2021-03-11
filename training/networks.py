@@ -14,6 +14,7 @@ from torch_utils.ops import conv2d_resample
 from torch_utils.ops import upfirdn2d
 from torch_utils.ops import bias_act
 from torch_utils.ops import fma
+import pytorch_lightning as pl
 
 #----------------------------------------------------------------------------
 
@@ -61,14 +62,14 @@ def modulated_conv2d(
 
     # Execute by scaling the activations before and after the convolution.
     if not fused_modconv:
-        x = x * styles.to(x.dtype).reshape(batch_size, -1, 1, 1)
-        x = conv2d_resample.conv2d_resample(x=x, w=weight.to(x.dtype), f=resample_filter, up=up, down=down, padding=padding, flip_weight=flip_weight)
+        x = x * styles.to(dtype=x.dtype).reshape(batch_size, -1, 1, 1)
+        x = conv2d_resample.conv2d_resample(x=x, w=weight.to(dtype=x.dtype), f=resample_filter, up=up, down=down, padding=padding, flip_weight=flip_weight)
         if demodulate and noise is not None:
-            x = fma.fma(x, dcoefs.to(x.dtype).reshape(batch_size, -1, 1, 1), noise.to(x.dtype))
+            x = fma.fma(x, dcoefs.to(dtype=x.dtype).reshape(batch_size, -1, 1, 1), noise.to(dtype=x.dtype))
         elif demodulate:
-            x = x * dcoefs.to(x.dtype).reshape(batch_size, -1, 1, 1)
+            x = x * dcoefs.to(dtype=x.dtype).reshape(batch_size, -1, 1, 1)
         elif noise is not None:
-            x = x.add_(noise.to(x.dtype))
+            x = x.add_(noise.to(dtype=x.dtype))
         return x
 
     # Execute as one fused op using grouped convolution.
@@ -77,7 +78,7 @@ def modulated_conv2d(
     misc.assert_shape(x, [batch_size, in_channels, None, None])
     x = x.reshape(1, -1, *x.shape[2:])
     w = w.reshape(-1, in_channels, kh, kw)
-    x = conv2d_resample.conv2d_resample(x=x, w=w.to(x.dtype), f=resample_filter, up=up, down=down, padding=padding, groups=batch_size, flip_weight=flip_weight)
+    x = conv2d_resample.conv2d_resample(x=x, w=w.to(dtype=x.dtype), f=resample_filter, up=up, down=down, padding=padding, groups=batch_size, flip_weight=flip_weight)
     x = x.reshape(batch_size, -1, *x.shape[2:])
     if noise is not None:
         x = x.add_(noise)
@@ -103,10 +104,10 @@ class FullyConnectedLayer(torch.nn.Module):
         self.bias_gain = lr_multiplier
 
     def forward(self, x):
-        w = self.weight.to(x.dtype) * self.weight_gain
+        w = self.weight.to(dtype=x.dtype) * self.weight_gain
         b = self.bias
         if b is not None:
-            b = b.to(x.dtype)
+            b = b.to(dtype=x.dtype)
             if self.bias_gain != 1:
                 b = b * self.bias_gain
 
@@ -159,9 +160,10 @@ class Conv2dLayer(torch.nn.Module):
 
     def forward(self, x, gain=1):
         w = self.weight * self.weight_gain
-        b = self.bias.to(x.dtype) if self.bias is not None else None
+        b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
         flip_weight = (self.up == 1) # slightly faster
-        x = conv2d_resample.conv2d_resample(x=x, w=w.to(x.dtype), f=self.resample_filter, up=self.up, down=self.down, padding=self.padding, flip_weight=flip_weight)
+        x = conv2d_resample.conv2d_resample(x=x, w=w.to(dtype=x.dtype), f=self.resample_filter,
+                                            up=self.up, down=self.down, padding=self.padding, flip_weight=flip_weight)
 
         act_gain = self.act_gain * gain
         act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
@@ -289,7 +291,7 @@ class SynthesisLayer(torch.nn.Module):
 
         noise = None
         if self.use_noise and noise_mode == 'random':
-            noise = torch.randn([x.shape[0], 1, self.resolution, self.resolution], device=x.device) * self.noise_strength
+            noise = torch.randn([x.shape[0], 1, self.resolution, self.resolution]).to(dtype=x.dtype) * self.noise_strength
         if self.use_noise and noise_mode == 'const':
             noise = self.noise_const * self.noise_strength
 
@@ -299,7 +301,7 @@ class SynthesisLayer(torch.nn.Module):
 
         act_gain = self.act_gain * gain
         act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
-        x = bias_act.bias_act(x, self.bias.to(x.dtype), act=self.activation, gain=act_gain, clamp=act_clamp)
+        x = bias_act.bias_act(x, self.bias.type_as(x.type()), act=self.activation, gain=act_gain, clamp=act_clamp)
         return x
 
 #----------------------------------------------------------------------------
@@ -318,7 +320,7 @@ class ToRGBLayer(torch.nn.Module):
     def forward(self, x, w, fused_modconv=True):
         styles = self.affine(w) * self.weight_gain
         x = modulated_conv2d(x=x, weight=self.weight, styles=styles, demodulate=False, fused_modconv=fused_modconv)
-        x = bias_act.bias_act(x, self.bias.to(x.dtype), clamp=self.conv_clamp)
+        x = bias_act.bias_act(x, self.bias.type_as(x.type()), clamp=self.conv_clamp)
         return x
 
 #----------------------------------------------------------------------------

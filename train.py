@@ -776,12 +776,13 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
 
     # Launch processes.
     print('Launching processes...')
-    torch.multiprocessing.set_start_method('spawn')
-    with tempfile.TemporaryDirectory() as temp_dir:
-        if args.num_gpus == 1:
-            subprocess_fn(rank=0, args=args, temp_dir=temp_dir, encoder_mode=encoder_mode)
-        else:
-            torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode), nprocs=args.num_gpus)
+    training_loop.training_loop(**args)
+    #torch.multiprocessing.set_start_method('spawn')
+    # with tempfile.TemporaryDirectory() as temp_dir:
+    #     if args.num_gpus == 1:
+    #         subprocess_fn(rank=0, args=args, temp_dir=temp_dir, encoder_mode=encoder_mode)
+    #     else:
+    #         torch.multiprocessing.spawn(fn=subprocess_fn, args=(args, temp_dir, encoder_mode), nprocs=args.num_gpus)
 
 #----------------------------------------------------------------------------
 
