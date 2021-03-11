@@ -73,7 +73,7 @@ class StyleGAN2(pl.LightningModule):
         if batch_idx % phase.interval == 0:
             for name, param in phase.module.named_parameters():
                 if not param.is_leaf:
-                    print(name)
+                    print(name, param)
                 if param.grad is not None:
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
             optimizer.step(closure=optimizer_closure)
