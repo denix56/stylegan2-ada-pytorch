@@ -71,11 +71,12 @@ class StyleGAN2(pl.LightningModule):
                        on_tpu, using_native_amp, using_lbfgs):
         phase = self.phases[optimizer_idx]
         if batch_idx % phase.interval == 0:
-            for name, param in phase.module.named_parameters():
-                if not param.is_leaf:
-                    print(name, param)
+            for param in phase.module.parameters():
+                print('****************')
                 if param.grad is not None:
+                    print(param)
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
+                print('###################')
             optimizer.step(closure=optimizer_closure)
 
     def on_validation_start(self):
