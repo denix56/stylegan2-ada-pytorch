@@ -12,7 +12,7 @@ from .metrics_lightning import StyleGANMetric
 
 
 class StyleGAN2(pl.LightningModule):
-    def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, training_set, dataset_name, batch_size,
+    def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, training_set, batch_size,
                  style_mixing_prob, r1_gamma, pl_batch_shrink, pl_decay, pl_weight,
                  G_reg_interval, D_reg_interval, ema_kimg, ema_rampup, metrics):
         super().__init__()
@@ -24,7 +24,6 @@ class StyleGAN2(pl.LightningModule):
         self.augment_pipe = augment_pipe
 
         self.training_set = training_set
-        self.dataset_name = dataset_name
         self.batch_size = batch_size
 
         self.G_reg_interval = G_reg_interval
@@ -75,7 +74,7 @@ class StyleGAN2(pl.LightningModule):
 
     def on_validation_start(self):
         if self.metrics:
-            opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.dataset_name, device=self.device, G=self.G_ema)
+            opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.training_set.name, device=self.device, G=self.G_ema)
             for metric in self.metrics:
                 metric.prepare(opts)
 
