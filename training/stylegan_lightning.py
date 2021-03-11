@@ -48,7 +48,6 @@ class StyleGAN2(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, labels, all_gen_z, all_gen_c = batch
-        imgs = imgs.to(torch.float32) / 127.5 - 1
 
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
@@ -208,7 +207,8 @@ class StyleGAN2(pl.LightningModule):
 
         for i, (name, module, opt_kwargs,
                 reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self._gen_loss),
-                                                  ('D', self.D, self._D_opt_kwargs, self.D_reg_interval, self._disc_loss)]):
+                                                  #('D', self.D, self._D_opt_kwargs, self.D_reg_interval, self._disc_loss)
+                                                   ]):
             if reg_interval is None:
                 opt = dnnlib.util.construct_class_by_name(params=module.parameters(),
                                                           **opt_kwargs)  # subclass of torch.optim.Optimizer
