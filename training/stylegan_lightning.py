@@ -48,7 +48,9 @@ class StyleGAN2(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, labels = batch
         phase = self.phases[optimizer_idx]
-        return phase.loss(imgs, labels)
+        loss = phase.loss(imgs, labels)
+        print(loss)
+        return loss
 
     def training_step_end(self, training_step_outputs):
         # Update G_ema.
@@ -123,6 +125,7 @@ class StyleGAN2(pl.LightningModule):
             pl_grads = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True,
                                            only_inputs=True)[0]
         pl_lengths = pl_grads.square().sum(2).mean(1).sqrt()
+        print(pl_lengths.device, self.pl_mean.device)
         pl_mean = self.pl_mean.lerp(pl_lengths.mean(), self.pl_decay)
         self.pl_mean.copy_(pl_mean.detach())
         pl_penalty = (pl_lengths - pl_mean).square()
