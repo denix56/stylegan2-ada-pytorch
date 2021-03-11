@@ -8,7 +8,7 @@ import numpy as np
 from torch_utils.ops import conv2d_gradfix
 from functools import partial
 from torch_utils import misc
-from metrics_lightning import StyleGANMetric
+from .metrics_lightning import StyleGANMetric
 
 
 class StyleGAN2(pl.LightningModule):
