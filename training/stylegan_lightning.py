@@ -18,7 +18,7 @@ class StyleGAN2(pl.LightningModule):
         super().__init__()
         self.G = G
         self.D = D
-        self.G_ema = copy.deepcopy(self.G)
+        self.G_ema = copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
         self.augment_pipe = augment_pipe
