@@ -46,10 +46,6 @@ class StyleGAN2(pl.LightningModule):
         assert all([isinstance(metric, StyleGANMetric) for metric in metrics])
         self.metrics = nn.ModuleList(metrics)
 
-    def setup(self, stage: str):
-        print(len(self.phases))
-        self.datamodule.setup_noise_params(len(self.phases), self.G.z_dim)
-
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, labels, all_gen_z, all_gen_c = batch
         imgs = imgs.to(torch.float32) / 127.5 - 1
@@ -234,6 +230,8 @@ class StyleGAN2(pl.LightningModule):
                 loss = partial(loss_, do_main=False, do_reg=True, gain=reg_interval)
                 self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
                 opts.append(opt)
+
+        self.datamodule.setup_noise_params(len(self.phases), self.G.z_dim)
 
         return opts
 
