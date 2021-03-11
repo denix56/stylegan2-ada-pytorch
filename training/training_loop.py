@@ -22,9 +22,9 @@ from torch_utils.ops import conv2d_gradfix
 from torch_utils.ops import grid_sample_gradfix
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.seed import seed_everything
-from dataloader_lightning import StyleGANDataModule
-from metrics_lightning import FID
-from stylegan_lightning import StyleGAN2
+from .dataloader_lightning import StyleGANDataModule
+from .metrics_lightning import FID
+from .stylegan_lightning import StyleGAN2
 
 import legacy
 from metrics import metric_main
