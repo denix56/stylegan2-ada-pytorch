@@ -55,7 +55,6 @@ class StyleGAN2(pl.LightningModule):
 
     def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         # Update G_ema.
-        print(len(batch), len(outputs))
         ema_nimg = self.ema_kimg * 1000
         if self.ema_rampup is not None:
             ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
@@ -75,7 +74,6 @@ class StyleGAN2(pl.LightningModule):
                 if param.grad is not None:
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
             optimizer.step(closure=optimizer_closure)
-            optimizer.zero_grad()
 
     def on_validation_start(self):
         if self.metrics:

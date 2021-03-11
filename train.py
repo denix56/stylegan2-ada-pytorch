@@ -22,6 +22,8 @@ from metrics import metric_main
 from torch_utils import training_stats
 from torch_utils import custom_ops
 
+import warnings
+
 #----------------------------------------------------------------------------
 
 class UserError(Exception):
@@ -727,6 +729,8 @@ def main(ctx, outdir, dry_run, encoder_mode, **config_kwargs):
       lsundog256     LSUN Dog trained at 256x256 resolution.
       <PATH or URL>  Custom network pickle.
     """
+    warnings.filterwarnings("error::UserWarning")
+
     dnnlib.util.Logger(should_flush=True)
     print(config_kwargs)
     # Setup training options.
