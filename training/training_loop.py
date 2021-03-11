@@ -196,7 +196,7 @@ def training_loop(
                     training_set=training_set, batch_size=batch_gpu, G_reg_interval=G_reg_interval, D_reg_interval=D_reg_interval,
                     ema_kimg=ema_kimg, ema_rampup=ema_rampup, metrics=[fid50k], **loss_kwargs)
 
-    trainer = pl.Trainer(gpus=num_gpus, accelerator='ddp', fast_dev_run=True,
+    trainer = pl.Trainer(gpus=num_gpus, accelerator='ddp', weights_summary='full', fast_dev_run=True,
                          benchmark=cudnn_benchmark, max_steps=total_kimg//(batch_size*num_gpus)*1000)
     trainer.fit(net, datamodule=training_set_pl)
 
