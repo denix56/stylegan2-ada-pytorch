@@ -225,6 +225,8 @@ class StyleGAN2(pl.LightningModule):
                 loss = partial(loss_, do_main=True, do_reg=False, gain=1)
                 self.phases += [dnnlib.EasyDict(name=name + 'main', module=module, interval=1, loss=loss)]
                 opts.append(opt)
+                opt = dnnlib.util.construct_class_by_name(module.parameters(),
+                                                          **opt_kwargs)  # subclass of torch.optim.Optimizer
                 loss = partial(loss_, do_main=False, do_reg=True, gain=reg_interval)
                 self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
                 opts.append(opt)
