@@ -34,8 +34,7 @@ class StyleGANDataModule(pl.LightningDataModule):
         if len(all_gen_c.shape) == 1:
             all_gen_c = all_gen_c.reshape((self.n_phases, batch_size))
         else:
-            print(all_gen_c.shape)
-            all_gen_c = all_gen_c.reshape((self.n_phases, batch_size) + all_gen_c[1:])
+            all_gen_c = all_gen_c.reshape((self.n_phases, batch_size) + all_gen_c.shape[1:])
         all_gen_c = torch.tensor(all_gen_c, device=imgs.device)
         return all_gen_z, all_gen_c
 
