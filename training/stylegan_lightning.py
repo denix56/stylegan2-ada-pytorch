@@ -47,9 +47,10 @@ class StyleGAN2(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, labels = batch
+        imgs = imgs.to(torch.float32) / 127.5 - 1
+
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels)
-        print(loss)
         return loss
 
     def training_step_end(self, training_step_outputs):

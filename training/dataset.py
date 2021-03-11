@@ -13,6 +13,7 @@ import PIL.Image
 import json
 import torch
 import dnnlib
+from torchvision.transforms.functional import to_tensor
 
 try:
     import pyspng
