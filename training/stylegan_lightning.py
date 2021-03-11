@@ -35,7 +35,7 @@ class StyleGAN2(pl.LightningModule):
         self.pl_batch_shrink = pl_batch_shrink
         self.pl_decay = pl_decay
         self.pl_weight = pl_weight
-        self.pl_mean = torch.zeros([])
+        self.pl_mean = nn.Parameter(torch.zeros([]), requires_grad=False)
 
         self.ema_kimg = ema_kimg
         self.ema_rampup = ema_rampup
