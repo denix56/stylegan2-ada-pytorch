@@ -13,8 +13,8 @@ from .metrics_lightning import StyleGANMetric
 
 class StyleGAN2(pl.LightningModule):
     def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, training_set, batch_size,
-                 style_mixing_prob, r1_gamma, pl_batch_shrink, pl_decay, pl_weight,
-                 G_reg_interval, D_reg_interval, ema_kimg, ema_rampup, metrics):
+                 style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2,
+                 G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
         self.G = G
         self.D = D
