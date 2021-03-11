@@ -248,10 +248,8 @@ class FeatStatsDataset(pl.metrics.Metric):
 #----------------------------------------------------------------------------
 
 class FeatStatsGenerator(pl.metrics.Metric):
-    def __init__(self, trainer: pl.Trainer, detector_url: str, detector_kwargs: dict = None, stats_kwargs=None, verbose=False):
+    def __init__(self, detector_url: str, detector_kwargs: dict = None, stats_kwargs=None, verbose=False):
         super(FeatStatsGenerator, self).__init__()
-
-        self.trainer = trainer
         self.detector_url = detector_url
         self.detector_kwargs = detector_kwargs
         self.stats = None
