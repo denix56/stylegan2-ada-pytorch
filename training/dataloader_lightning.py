@@ -26,12 +26,13 @@ class StyleGANDataModule(pl.LightningDataModule):
         assert self.n_phases
         assert self.z_dim
 
-        batch_size = batch.shape[0]
-        all_gen_z = torch.randn([len(self.n_phases), batch_size, self.z_dim], device=batch.device)
+        imgs, _ = batch
+        batch_size = imgs.shape[0]
+        all_gen_z = torch.randn([len(self.n_phases), batch_size, self.z_dim], device=imgs.device)
         all_gen_c = self.training_set.get_label(np.random.randint(self.training_set.get_len(),
                                                 size=self.n_phases*batch_size))
         all_gen_c = all_gen_c.reshape((self.n_phases, batch_size) + all_gen_c.shape[1:])
-        all_gen_c = torch.tensor(all_gen_c, device=batch.device)
+        all_gen_c = torch.tensor(all_gen_c, device=imgs.device)
         return all_gen_z, all_gen_c
 
     def train_dataloader(self):
