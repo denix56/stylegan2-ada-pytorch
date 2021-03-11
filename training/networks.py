@@ -301,7 +301,7 @@ class SynthesisLayer(torch.nn.Module):
 
         act_gain = self.act_gain * gain
         act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
-        x = bias_act.bias_act(x, self.bias.type_as(x.type()), act=self.activation, gain=act_gain, clamp=act_clamp)
+        x = bias_act.bias_act(x, self.bias.to(x.dtype), act=self.activation, gain=act_gain, clamp=act_clamp)
         return x
 
 #----------------------------------------------------------------------------
@@ -320,7 +320,7 @@ class ToRGBLayer(torch.nn.Module):
     def forward(self, x, w, fused_modconv=True):
         styles = self.affine(w) * self.weight_gain
         x = modulated_conv2d(x=x, weight=self.weight, styles=styles, demodulate=False, fused_modconv=fused_modconv)
-        x = bias_act.bias_act(x, self.bias.type_as(x.type()), clamp=self.conv_clamp)
+        x = bias_act.bias_act(x, self.bias.to(x.dtype), clamp=self.conv_clamp)
         return x
 
 #----------------------------------------------------------------------------
