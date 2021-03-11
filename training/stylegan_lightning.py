@@ -192,7 +192,7 @@ class StyleGAN2(pl.LightningModule):
         cutoff = torch.empty([], dtype=torch.int64, device=ws.device).random_(1, ws.shape[1])
         cutoff = torch.where(torch.rand([], device=ws.device) < self.style_mixing_prob, cutoff,
                              torch.full_like(cutoff, ws.shape[1]))
-        ws[:, cutoff:] = self.G_mapping(torch.randn_like(z), c, skip_w_avg_update=True)[:, cutoff:]
+        ws[:, cutoff:] = self.G.mapping(torch.randn_like(z), c, skip_w_avg_update=True)[:, cutoff:]
         return ws
 
     def _get_noise(self, batch_size: int) -> (torch.Tensor, torch.Tensor):
