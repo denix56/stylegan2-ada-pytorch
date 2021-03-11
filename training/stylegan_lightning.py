@@ -36,7 +36,7 @@ class StyleGAN2(pl.LightningModule):
         self.pl_batch_shrink = pl_batch_shrink
         self.pl_decay = pl_decay
         self.pl_weight = pl_weight
-        self.pl_mean = nn.Parameter(torch.zeros([]), requires_grad=False)
+        self.pl_mean = torch.zeros([])
 
         self.ema_kimg = ema_kimg
         self.ema_rampup = ema_rampup
@@ -129,7 +129,7 @@ class StyleGAN2(pl.LightningModule):
             pl_grads = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True,
                                            only_inputs=True)[0]
         pl_lengths = pl_grads.square().sum(2).mean(1).sqrt()
-        print(pl_lengths.device, self.pl_mean.device)
+        self.pl_mean = self.pl_mean.to(pl_lengths.device)
         pl_mean = self.pl_mean.lerp(pl_lengths.mean(), self.pl_decay)
         self.pl_mean.copy_(pl_mean.detach())
         pl_penalty = (pl_lengths - pl_mean).square()
