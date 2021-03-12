@@ -29,6 +29,20 @@ from .stylegan_lightning import StyleGAN2
 import legacy
 from metrics import metric_main
 
+from pytorch_lightning.plugins.training_type.ddp import DDPPlugin
+from pytorch_lightning.overrides import LightningDistributedModule
+
+class MyDDP(DDPPlugin):
+
+    def configure_ddp(self):
+        self._ddp_kwargs["find_unused_parameters"] = True
+        self.pre_configure_ddp()
+        self._model = torch.nn.parallel.DistributedDataParallel(
+            LightningDistributedModule(self.model),
+            device_ids=self.determine_ddp_device_ids(),
+            **self._ddp_kwargs,
+        )
+
 #----------------------------------------------------------------------------
 
 def setup_snapshot_image_grid(training_set, random_seed=0):
@@ -197,7 +211,8 @@ def training_loop(
                     ema_kimg=ema_kimg, ema_rampup=ema_rampup, metrics=[fid50k], **loss_kwargs)
 
     trainer = pl.Trainer(gpus=num_gpus, accelerator='ddp', weights_summary='full', fast_dev_run=True,
-                         benchmark=cudnn_benchmark, max_steps=total_kimg//(batch_size*num_gpus)*1000)
+                         benchmark=cudnn_benchmark, max_steps=total_kimg//(batch_size*num_gpus)*1000,
+                         plugins=[MyDDP])
     trainer.fit(net, datamodule=training_set_pl)
 
     # # Distribute across GPUs.

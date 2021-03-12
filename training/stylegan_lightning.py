@@ -98,8 +98,8 @@ class StyleGAN2(pl.LightningModule):
 
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
-        #if self.style_mixing_prob > 0:
-        #    ws = self._style_mixing(z, c, ws)
+        if self.style_mixing_prob > 0:
+            ws = self._style_mixing(z, c, ws)
         img = self.G.synthesis(ws)
         return img, ws
 
