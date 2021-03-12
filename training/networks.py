@@ -741,7 +741,7 @@ class Discriminator(torch.nn.Module):
 
     def forward(self, img, c, **block_kwargs):
         x = None
-        return_img = True
+        return_img = False
         for i, res in enumerate(self.block_resolutions):
             block = getattr(self, f'b{res}')
             if return_img:
@@ -754,11 +754,12 @@ class Discriminator(torch.nn.Module):
                 x, img = block(x, img, return_img=return_img, **block_kwargs)
             else:
                 x = block(x, img, return_img=return_img, **block_kwargs)
+            return x
 
-        cmap = None
-        if self.c_dim > 0:
-            cmap = self.mapping(None, c)
-        x = self.b4(x, img, cmap)
+        # cmap = None
+        # if self.c_dim > 0:
+        #     cmap = self.mapping(None, c)
+        # x = self.b4(x, img, cmap)
         return x
 
 #----------------------------------------------------------------------------
