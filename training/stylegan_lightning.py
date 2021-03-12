@@ -25,9 +25,9 @@ class StyleGAN2(pl.LightningModule):
                  style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2,
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
-        self.G = G
+        self.G = None
         self.D = TestD()
-        self.G_ema = copy.deepcopy(self.G).eval().requires_grad_(False)
+        self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
         self.augment_pipe = augment_pipe
