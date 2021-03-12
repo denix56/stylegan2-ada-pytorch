@@ -55,10 +55,10 @@ class StyleGAN2(pl.LightningModule):
         #self.metrics = nn.ModuleList(metrics)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, labels, all_gen_z, all_gen_c = batch
+        imgs, labels = batch
 
         phase = self.phases[optimizer_idx]
-        loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
+        loss = phase.loss(imgs, labels, None, None)
         return loss
 
     # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
@@ -104,12 +104,12 @@ class StyleGAN2(pl.LightningModule):
     #         for metric in self.metrics:
     #             metric.reset()
 
-    def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
-        ws = self.G.mapping(z, c)
-        if self.style_mixing_prob > 0:
-            ws = self._style_mixing(z, c, ws)
-        img = self.G.synthesis(ws)
-        return img, ws
+    # def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+    #     ws = self.G.mapping(z, c)
+    #     if self.style_mixing_prob > 0:
+    #         ws = self._style_mixing(z, c, ws)
+    #     img = self.G.synthesis(ws)
+    #     return img, ws
 
     def _disc_run(self, img: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         # if self.augment_pipe is not None:
@@ -117,40 +117,40 @@ class StyleGAN2(pl.LightningModule):
         logits = self.D(img, c)
         return logits
 
-    def _gen_main_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
-            gen_img, _gen_ws = self._gen_run(gen_z, gen_c)
-            gen_logits = self._disc_run(gen_img, gen_c)
-            # training_stats.report('Loss/scores/fake', gen_logits)
-            # training_stats.report('Loss/signs/fake', gen_logits.sign())
-            loss_Gmain = F.softplus(-gen_logits)  # -log(sigmoid(gen_logits))
-            loss_Gmain = loss_Gmain.mean()
-            # training_stats.report('Loss/G/loss', loss_Gmain)
-            return loss_Gmain.mean().mul(gain)
-
-    def _gen_pl_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
-        batch_size = gen_z.shape[0] // self.pl_batch_shrink
-        gen_img, gen_ws = self._gen_run(gen_z[:batch_size], gen_c[:batch_size])
-        pl_noise = torch.randn_like(gen_img) / np.sqrt(gen_img.shape[2] * gen_img.shape[3])
-        with conv2d_gradfix.no_weight_gradients():
-            pl_grads = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True,
-                                           only_inputs=True)[0]
-        pl_lengths = pl_grads.square().sum(2).mean(1).sqrt()
-        self.pl_mean = self.pl_mean.to(pl_lengths.device)
-        pl_mean = self.pl_mean.lerp(pl_lengths.mean(), self.pl_decay)
-        self.pl_mean.copy_(pl_mean.detach())
-        pl_penalty = (pl_lengths - pl_mean).square()
-        # training_stats.report('Loss/pl_penalty', pl_penalty)
-        loss_Gpl = pl_penalty * self.pl_weight
-        # training_stats.report('Loss/G/reg', loss_Gpl)
-        return (gen_img[:, 0, 0, 0] * 0 + loss_Gpl).mean().mul(gain)
-
-    def _disc_main_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
-        gen_img, _gen_ws = self._gen_run(gen_z, gen_c)
-        gen_logits = self._disc_run(gen_img, gen_c)
-        # training_stats.report('Loss/scores/fake', gen_logits)
-        # training_stats.report('Loss/signs/fake', gen_logits.sign())
-        loss_Dgen = F.softplus(gen_logits)  # -log(1 - sigmoid(gen_logits))
-        return loss_Dgen.mean().mul(gain)
+    # def _gen_main_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
+    #         gen_img, _gen_ws = self._gen_run(gen_z, gen_c)
+    #         gen_logits = self._disc_run(gen_img, gen_c)
+    #         # training_stats.report('Loss/scores/fake', gen_logits)
+    #         # training_stats.report('Loss/signs/fake', gen_logits.sign())
+    #         loss_Gmain = F.softplus(-gen_logits)  # -log(sigmoid(gen_logits))
+    #         loss_Gmain = loss_Gmain.mean()
+    #         # training_stats.report('Loss/G/loss', loss_Gmain)
+    #         return loss_Gmain.mean().mul(gain)
+    #
+    # def _gen_pl_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
+    #     batch_size = gen_z.shape[0] // self.pl_batch_shrink
+    #     gen_img, gen_ws = self._gen_run(gen_z[:batch_size], gen_c[:batch_size])
+    #     pl_noise = torch.randn_like(gen_img) / np.sqrt(gen_img.shape[2] * gen_img.shape[3])
+    #     with conv2d_gradfix.no_weight_gradients():
+    #         pl_grads = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True,
+    #                                        only_inputs=True)[0]
+    #     pl_lengths = pl_grads.square().sum(2).mean(1).sqrt()
+    #     self.pl_mean = self.pl_mean.to(pl_lengths.device)
+    #     pl_mean = self.pl_mean.lerp(pl_lengths.mean(), self.pl_decay)
+    #     self.pl_mean.copy_(pl_mean.detach())
+    #     pl_penalty = (pl_lengths - pl_mean).square()
+    #     # training_stats.report('Loss/pl_penalty', pl_penalty)
+    #     loss_Gpl = pl_penalty * self.pl_weight
+    #     # training_stats.report('Loss/G/reg', loss_Gpl)
+    #     return (gen_img[:, 0, 0, 0] * 0 + loss_Gpl).mean().mul(gain)
+    #
+    # def _disc_main_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
+    #     gen_img, _gen_ws = self._gen_run(gen_z, gen_c)
+    #     gen_logits = self._disc_run(gen_img, gen_c)
+    #     # training_stats.report('Loss/scores/fake', gen_logits)
+    #     # training_stats.report('Loss/signs/fake', gen_logits.sign())
+    #     loss_Dgen = F.softplus(gen_logits)  # -log(1 - sigmoid(gen_logits))
+    #     return loss_Dgen.mean().mul(gain)
 
     # Dmain: Maximize logits for real images.
     # Dr1: Apply R1 regularization.
@@ -176,21 +176,21 @@ class StyleGAN2(pl.LightningModule):
         #     # training_stats.report('Loss/r1_penalty', r1_penalty)
         #     # training_stats.report('Loss/D/reg', loss_Dr1)
         # return (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain)
-
-    def _gen_loss(self, real_img: torch.Tensor,
-                  real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
-                  gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
-        loss = None
-        do_reg = do_reg and self.pl_weight != 0
-        if do_main:
-            loss = self._gen_main_loss(gen_z, gen_c, gain)
-            if do_reg:
-                loss += self._gen_pl_loss(gen_z, gen_c, gain)
-        elif do_reg:
-            loss = self._gen_pl_loss(gen_z, gen_c, gain)
-        if loss is None:
-            loss = torch.zeros(1, device=self.device)
-        return loss
+    #
+    # def _gen_loss(self, real_img: torch.Tensor,
+    #               real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
+    #               gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
+    #     loss = None
+    #     do_reg = do_reg and self.pl_weight != 0
+    #     if do_main:
+    #         loss = self._gen_main_loss(gen_z, gen_c, gain)
+    #         if do_reg:
+    #             loss += self._gen_pl_loss(gen_z, gen_c, gain)
+    #     elif do_reg:
+    #         loss = self._gen_pl_loss(gen_z, gen_c, gain)
+    #     if loss is None:
+    #         loss = torch.zeros(1, device=self.device)
+    #     return loss
 
     def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
@@ -200,21 +200,21 @@ class StyleGAN2(pl.LightningModule):
         #    loss += self._disc_main_loss(gen_z, gen_c, gain)
         return loss
 
-    def _style_mixing(self, z: torch.Tensor, c: torch.Tensor, ws: torch.Tensor) -> torch.Tensor:
-        cutoff = torch.empty([], dtype=torch.int64, device=ws.device).random_(1, ws.shape[1])
-        cutoff = torch.where(torch.rand([], device=ws.device) < self.style_mixing_prob, cutoff,
-                             torch.full_like(cutoff, ws.shape[1]))
-        ws[:, cutoff:] = self.G.mapping(torch.randn_like(z), c, skip_w_avg_update=True)[:, cutoff:]
-        return ws
+    # def _style_mixing(self, z: torch.Tensor, c: torch.Tensor, ws: torch.Tensor) -> torch.Tensor:
+    #     cutoff = torch.empty([], dtype=torch.int64, device=ws.device).random_(1, ws.shape[1])
+    #     cutoff = torch.where(torch.rand([], device=ws.device) < self.style_mixing_prob, cutoff,
+    #                          torch.full_like(cutoff, ws.shape[1]))
+    #     ws[:, cutoff:] = self.G.mapping(torch.randn_like(z), c, skip_w_avg_update=True)[:, cutoff:]
+    #     return ws
 
     def configure_optimizers(self):
         self.phases = []
         opts = []
 
         for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([#('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self._gen_loss),
+                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._disc_loss),
                                                    #('G', self.G, self._G_opt_kwargs, self.G_reg_interval,self._gen_loss),
-                                                  ('D', self.D, self._D_opt_kwargs, None, self._disc_loss),
+                                                 # ('D', self.D, self._D_opt_kwargs, None, self._disc_loss),
                                                   ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
         ]):
             if reg_interval is None:

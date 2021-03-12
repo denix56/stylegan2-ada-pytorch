@@ -51,6 +51,6 @@ class StyleGANDataModule(pl.LightningDataModule):
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         batch[0] = batch[0].to(torch.float32) / 127.5 - 1
-        all_gen_z, all_gen_c = self._get_noise(batch)
-        batch = tuple(batch) + (all_gen_z, all_gen_c)
+        #all_gen_z, all_gen_c = self._get_noise(batch)
+        #batch = tuple(batch) + (all_gen_z, all_gen_c)
         return batch
