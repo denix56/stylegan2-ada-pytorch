@@ -55,10 +55,10 @@ class StyleGAN2(pl.LightningModule):
         #self.metrics = nn.ModuleList(metrics)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, labels, all_gen_z, all_gen_c = batch
+        imgs, labels = batch
 
         phase = self.phases[optimizer_idx]
-        loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
+        loss = phase.loss(imgs, labels, None, None)
         return loss
 
     # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
@@ -77,11 +77,11 @@ class StyleGAN2(pl.LightningModule):
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
                        on_tpu, using_native_amp, using_lbfgs):
         phase = self.phases[optimizer_idx]
-        if batch_idx % phase.interval == 0:
-            for param in phase.module.parameters():
-                if param.grad is not None:
-                    misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
-            optimizer.step(closure=optimizer_closure)
+        # if batch_idx % phase.interval == 0:
+        #     for param in phase.module.parameters():
+        #         if param.grad is not None:
+        #             misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
+        optimizer.step(closure=optimizer_closure)
 
     # def on_validation_start(self):
     #     if self.metrics:
