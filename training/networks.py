@@ -569,7 +569,10 @@ class DiscriminatorBlock(torch.nn.Module):
             self.skip = Conv2dLayer(tmp_channels, out_channels, kernel_size=1, bias=False, down=2,
                 trainable=next(trainable_iter), resample_filter=resample_filter, channels_last=self.channels_last)
 
-    def forward(self, x, img, force_fp32=False, return_x=True):
+    def use_img(self):
+        return self.in_channels == 0 or self.architecture == 'skip'
+
+    def forward(self, x, img, force_fp32=False, return_img=True):
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
         memory_format = torch.channels_last if self.channels_last and not force_fp32 else torch.contiguous_format
 
@@ -579,7 +582,7 @@ class DiscriminatorBlock(torch.nn.Module):
             x = x.to(dtype=dtype, memory_format=memory_format)
 
         # FromRGB.
-        if self.in_channels == 0 or self.architecture == 'skip':
+        if self.use_img():
             misc.assert_shape(img, [None, self.img_channels, self.resolution, self.resolution])
             img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
@@ -597,10 +600,10 @@ class DiscriminatorBlock(torch.nn.Module):
             x = self.conv1(x)
 
         assert x.dtype == dtype
-        if return_x:
+        if return_img:
             return x, img
         else:
-            return None, img
+            return x, None
 
 #----------------------------------------------------------------------------
 
@@ -657,6 +660,9 @@ class DiscriminatorEpilogue(torch.nn.Module):
         self.conv = Conv2dLayer(in_channels + mbstd_num_channels, in_channels, kernel_size=3, activation=activation, conv_clamp=conv_clamp)
         self.fc = FullyConnectedLayer(in_channels * (resolution ** 2), in_channels, activation=activation)
         self.out = FullyConnectedLayer(in_channels, 1 if cmap_dim == 0 else cmap_dim)
+
+    def use_img(self):
+        return self.architecture == 'skip'
 
     def forward(self, x, img, cmap, force_fp32=False):
         misc.assert_shape(x, [None, self.in_channels, self.resolution, self.resolution]) # [NCHW]
@@ -735,9 +741,16 @@ class Discriminator(torch.nn.Module):
 
     def forward(self, img, c, **block_kwargs):
         x = None
+        return_img = True
         for i, res in enumerate(self.block_resolutions):
             block = getattr(self, f'b{res}')
-            x, img = block(x, img, **block_kwargs)
+            if return_img:
+                if i < len(self.block_resolutions-1):
+                    next_block = getattr(self, f'b{self.block_resolutions[i+1]}')
+                    return_img = next_block.use_img()
+                else:
+                    return_img = self.b4.use_img()
+            x, img = block(x, img, return_img=return_img, **block_kwargs)
 
         cmap = None
         if self.c_dim > 0:
