@@ -152,22 +152,22 @@ class StyleGAN2(pl.LightningModule):
         real_logits = self._disc_run(real_img_tmp, real_c)
         # training_stats.report('Loss/scores/real', real_logits)
         # training_stats.report('Loss/signs/real', real_logits.sign())
-
-        loss_Dreal = 0
-        if do_main:
-            loss_Dreal = F.softplus(-real_logits)  # -log(sigmoid(real_logits))
-            # training_stats.report('Loss/D/loss', loss_Dgen + loss_Dreal)
-
-        loss_Dr1 = 0
-        if do_reg:
-            with conv2d_gradfix.no_weight_gradients():
-                r1_grads = torch.autograd.grad(outputs=[real_logits.sum()], inputs=[real_img_tmp], create_graph=True,
-                                               only_inputs=True)[0]
-            r1_penalty = r1_grads.square().sum([1, 2, 3])
-            loss_Dr1 = r1_penalty * (self.r1_gamma / 2)
-            # training_stats.report('Loss/r1_penalty', r1_penalty)
-            # training_stats.report('Loss/D/reg', loss_Dr1)
-        return (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain)
+        return real_logits.mean()
+        # loss_Dreal = 0
+        # if do_main:
+        #     loss_Dreal = F.softplus(-real_logits)  # -log(sigmoid(real_logits))
+        #     # training_stats.report('Loss/D/loss', loss_Dgen + loss_Dreal)
+        #
+        # loss_Dr1 = 0
+        # if do_reg:
+        #     with conv2d_gradfix.no_weight_gradients():
+        #         r1_grads = torch.autograd.grad(outputs=[real_logits.sum()], inputs=[real_img_tmp], create_graph=True,
+        #                                        only_inputs=True)[0]
+        #     r1_penalty = r1_grads.square().sum([1, 2, 3])
+        #     loss_Dr1 = r1_penalty * (self.r1_gamma / 2)
+        #     # training_stats.report('Loss/r1_penalty', r1_penalty)
+        #     # training_stats.report('Loss/D/reg', loss_Dr1)
+        # return (real_logits * 0 + loss_Dreal + loss_Dr1).mean().mul(gain)
 
     def _gen_loss(self, real_img: torch.Tensor,
                   real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
