@@ -204,8 +204,8 @@ class StyleGAN2(pl.LightningModule):
         opts = []
 
         for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._gen_loss),
-                                                  ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
+                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self._gen_loss),
+                                                  ('D', self.D, self._D_opt_kwargs, self.D_reg_interval, self._disc_loss)
                                                    ]):
             if reg_interval is None:
                 opt = dnnlib.util.construct_class_by_name(params=module.parameters(),

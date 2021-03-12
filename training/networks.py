@@ -376,7 +376,7 @@ class SynthesisBlock(torch.nn.Module):
             self.skip = Conv2dLayer(in_channels, out_channels, kernel_size=1, bias=False, up=2,
                 resample_filter=resample_filter, channels_last=self.channels_last)
 
-    def forward(self, x, img, ws, force_fp32=False, fused_modconv=None, **layer_kwargs):
+    def forward(self, x, img, ws, force_fp32=False, fused_modconv=None, return_x=True, **layer_kwargs):
         misc.assert_shape(ws, [None, self.num_conv + self.num_torgb, self.w_dim])
         w_iter = iter(ws.unbind(dim=1))
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
@@ -416,7 +416,10 @@ class SynthesisBlock(torch.nn.Module):
 
         assert x.dtype == dtype
         assert img is None or img.dtype == torch.float32
-        return x, img
+        if return_x:
+            return x, img
+        else:
+            return None, img
 
 #----------------------------------------------------------------------------
 
@@ -466,9 +469,10 @@ class SynthesisNetwork(torch.nn.Module):
                 w_idx += block.num_conv
 
         x = img = None
-        for res, cur_ws in zip(self.block_resolutions, block_ws):
+        for i, (res, cur_ws) in enumerate(zip(self.block_resolutions, block_ws)):
             block = getattr(self, f'b{res}')
-            x, img = block(x, img, cur_ws, **block_kwargs)
+            return_x = (i < len(self.block_resolutions)-1)
+            x, img = block(x, img, cur_ws, return_x=return_x, **block_kwargs)
         return img
 
 #----------------------------------------------------------------------------
@@ -565,7 +569,7 @@ class DiscriminatorBlock(torch.nn.Module):
             self.skip = Conv2dLayer(tmp_channels, out_channels, kernel_size=1, bias=False, down=2,
                 trainable=next(trainable_iter), resample_filter=resample_filter, channels_last=self.channels_last)
 
-    def forward(self, x, img, force_fp32=False):
+    def forward(self, x, img, force_fp32=False, return_x=True):
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
         memory_format = torch.channels_last if self.channels_last and not force_fp32 else torch.contiguous_format
 
@@ -593,7 +597,10 @@ class DiscriminatorBlock(torch.nn.Module):
             x = self.conv1(x)
 
         assert x.dtype == dtype
-        return x, img
+        if return_x:
+            return x, img
+        else:
+            return None, img
 
 #----------------------------------------------------------------------------
 
@@ -728,7 +735,7 @@ class Discriminator(torch.nn.Module):
 
     def forward(self, img, c, **block_kwargs):
         x = None
-        for res in self.block_resolutions:
+        for i, res in enumerate(self.block_resolutions):
             block = getattr(self, f'b{res}')
             x, img = block(x, img, **block_kwargs)
 
