@@ -77,11 +77,11 @@ class StyleGAN2(pl.LightningModule):
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
                        on_tpu, using_native_amp, using_lbfgs):
         phase = self.phases[optimizer_idx]
-        if batch_idx % phase.interval == 0:
-            for param in phase.module.parameters():
-                if param.grad is not None:
-                    misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
-            optimizer.step(closure=optimizer_closure)
+        # if batch_idx % phase.interval == 0:
+        #     for param in phase.module.parameters():
+        #         if param.grad is not None:
+        #             misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
+        optimizer.step(closure=optimizer_closure)
 
     # def on_validation_start(self):
     #     if self.metrics:
@@ -214,8 +214,8 @@ class StyleGAN2(pl.LightningModule):
         for i, (name, module, opt_kwargs,
                 reg_interval, loss_) in enumerate([#('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self._gen_loss),
                                                    #('G', self.G, self._G_opt_kwargs, self.G_reg_interval,self._gen_loss),
-                                                  ('D', self.D, self._D_opt_kwargs, self.D_reg_interval, self._disc_loss),
-                                                  ('D', self.D, self._D_opt_kwargs, self.D_reg_interval, self._disc_loss)
+                                                  ('D', self.D, self._D_opt_kwargs, None, self._disc_loss),
+                                                  ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
         ]):
             if reg_interval is None:
                 opt = dnnlib.util.construct_class_by_name(params=module.parameters(),
