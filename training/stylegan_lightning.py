@@ -106,7 +106,7 @@ class StyleGAN2(pl.LightningModule):
     def _disc_run(self, img: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
         # if self.augment_pipe is not None:
         #     img = self.augment_pipe(img)
-        logits = self.D(None, c)
+        logits = self.D(img, c)
         return logits
 
     def _gen_main_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
