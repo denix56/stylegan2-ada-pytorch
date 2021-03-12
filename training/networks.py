@@ -603,7 +603,7 @@ class DiscriminatorBlock(torch.nn.Module):
         if return_img:
             return x, img
         else:
-            return x, None
+            return x
 
 #----------------------------------------------------------------------------
 
@@ -750,7 +750,10 @@ class Discriminator(torch.nn.Module):
                     return_img = next_block.use_img()
                 else:
                     return_img = self.b4.use_img()
-            x, img = block(x, img, return_img=return_img, **block_kwargs)
+            if return_img:
+                x, img = block(x, img, return_img=return_img, **block_kwargs)
+            else:
+                x = block(x, img, return_img=return_img, **block_kwargs)
 
         cmap = None
         if self.c_dim > 0:
