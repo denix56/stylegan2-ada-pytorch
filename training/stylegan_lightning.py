@@ -11,6 +11,14 @@ from torch_utils import misc
 from .metrics_lightning import StyleGANMetric
 from .dataloader_lightning import StyleGANDataModule
 
+class TestD(nn.Module):
+    def __init__(self):
+        super(TestD, self).__init__()
+        self.conv = nn.Identity()
+
+    def forward(self, img, c):
+        return img.mean() + c.mean()
+
 
 class StyleGAN2(pl.LightningModule):
     def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, datamodule: StyleGANDataModule, batch_size,
@@ -18,7 +26,7 @@ class StyleGAN2(pl.LightningModule):
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
         self.G = G
-        self.D = D
+        self.D = TestD()
         self.G_ema = copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
