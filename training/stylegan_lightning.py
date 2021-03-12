@@ -174,12 +174,11 @@ class StyleGAN2(pl.LightningModule):
                   gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         loss = None
         do_reg = do_reg and self.pl_weight != 0
-
         if do_main:
             loss = self._gen_main_loss(gen_z, gen_c, gain)
             if do_reg:
                 loss += self._gen_pl_loss(gen_z, gen_c, gain)
-        if do_reg:
+        elif do_reg:
             loss = self._gen_pl_loss(gen_z, gen_c, gain)
         if loss is None:
             loss = torch.zeros(1, device=self.device)
