@@ -75,26 +75,26 @@ class StyleGAN2(pl.LightningModule):
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
             optimizer.step(closure=optimizer_closure)
 
-    def on_validation_start(self):
-        if self.metrics:
-            opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.datamodule.name,
-                                   device=self.device, G=self.G_ema)
-            for metric in self.metrics:
-                metric.prepare(opts)
-
-    def validation_step(self, batch, batch_idx):
-        if self.metrics:
-            batch_size = batch.size(0)
-            z = torch.randn((batch_size, self.G.z_dim), device=self.device)
-            indices = np.random.randint(self.training_set.get_len(), size=batch_size)
-            c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)
-            for metric in self.metrics:
-                metric(batch, z, c)
-
-    def on_validation_end(self):
-        if self.metrics:
-            for metric in self.metrics:
-                metric.reset()
+    # def on_validation_start(self):
+    #     if self.metrics:
+    #         opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.datamodule.name,
+    #                                device=self.device, G=self.G_ema)
+    #         for metric in self.metrics:
+    #             metric.prepare(opts)
+    #
+    # def validation_step(self, batch, batch_idx):
+    #     if self.metrics:
+    #         batch_size = batch.size(0)
+    #         z = torch.randn((batch_size, self.G.z_dim), device=self.device)
+    #         indices = np.random.randint(self.training_set.get_len(), size=batch_size)
+    #         c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)
+    #         for metric in self.metrics:
+    #             metric(batch, z, c)
+    #
+    # def on_validation_end(self):
+    #     if self.metrics:
+    #         for metric in self.metrics:
+    #             metric.reset()
 
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
@@ -104,8 +104,8 @@ class StyleGAN2(pl.LightningModule):
         return img, ws
 
     def _disc_run(self, img: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
-        if self.augment_pipe is not None:
-            img = self.augment_pipe(img)
+        # if self.augment_pipe is not None:
+        #     img = self.augment_pipe(img)
         logits = self.D(img, c)
         return logits
 
@@ -148,7 +148,7 @@ class StyleGAN2(pl.LightningModule):
     # Dr1: Apply R1 regularization.
     def _disc_max_logits_r1_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gain: int,
                          do_main: bool, do_reg: bool) -> torch.Tensor:
-        real_img_tmp = real_img.detach().requires_grad_(do_reg)
+        real_img_tmp = real_img
         real_logits = self._disc_run(real_img_tmp, real_c)
         # training_stats.report('Loss/scores/real', real_logits)
         # training_stats.report('Loss/signs/real', real_logits.sign())
