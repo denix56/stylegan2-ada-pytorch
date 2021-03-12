@@ -14,10 +14,10 @@ from .dataloader_lightning import StyleGANDataModule
 class TestD(nn.Module):
     def __init__(self):
         super(TestD, self).__init__()
-        self.conv = nn.Identity()
+        self.p = nn.Parameter(torch.ones([], requires_grad=True))
 
     def forward(self, img, c):
-        return img.mean() + c.mean()
+        return self.p*img.mean() + self.p*c.mean()
 
 
 class StyleGAN2(pl.LightningModule):
