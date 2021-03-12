@@ -211,7 +211,7 @@ def training_loop(
 
     trainer = pl.Trainer(gpus=num_gpus, accelerator='ddp', weights_summary='full', fast_dev_run=True,
                          benchmark=cudnn_benchmark, max_steps=total_kimg//(batch_size*num_gpus)*1000,
-                         plugins=DDPPlugin(find_unused_parameters=True))
+                         plugins=DDPPlugin(find_unused_parameters=False))
     trainer.fit(net, datamodule=training_set_pl)
 
     # # Distribute across GPUs.
