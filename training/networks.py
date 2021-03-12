@@ -745,7 +745,7 @@ class Discriminator(torch.nn.Module):
         for i, res in enumerate(self.block_resolutions):
             block = getattr(self, f'b{res}')
             if return_img:
-                if i < len(self.block_resolutions-1):
+                if i < len(self.block_resolutions)-1:
                     next_block = getattr(self, f'b{self.block_resolutions[i+1]}')
                     return_img = next_block.use_img()
                 else:
