@@ -30,7 +30,7 @@ class StyleGAN2(pl.LightningModule):
         self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
-        self.augment_pipe = augment_pipe
+        self.augment_pipe = None
 
         self.datamodule = datamodule
         self.batch_size = batch_size
