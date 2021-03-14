@@ -273,7 +273,10 @@ class SynthesisLayer(torch.nn.Module):
         self.use_noise = use_noise
         self.activation = activation
         self.conv_clamp = conv_clamp
-        self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+        if up > 1:
+            self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+        else:
+            self.resample_filter = None
         self.padding = kernel_size // 2
         self.act_gain = bias_act.activation_funcs[activation].def_gain
 
@@ -338,6 +341,8 @@ class SynthesisBlock(torch.nn.Module):
         is_last,                            # Is this the last block?
         architecture        = 'skip',       # Architecture: 'orig', 'skip', 'resnet'.
         resample_filter     = [1,3,3,1],    # Low-pass filter to apply when resampling activations.
+        force_rf_buffer=False,              # Force creation of resample filter buffer. if in_channels != 0, then img
+                                            # is required in forward pass
         conv_clamp          = None,         # Clamp the output of convolution layers to +-X, None = disable clamping.
         use_fp16            = False,        # Use FP16 for this block?
         fp16_channels_last  = False,        # Use channels-last memory format with FP16?
@@ -353,7 +358,11 @@ class SynthesisBlock(torch.nn.Module):
         self.architecture = architecture
         self.use_fp16 = use_fp16
         self.channels_last = (use_fp16 and fp16_channels_last)
-        self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+        self.force_rf_buffer = force_rf_buffer
+
+        if in_channels == 0 or force_rf_buffer:
+            self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+
         self.num_conv = 0
         self.num_torgb = 0
 
@@ -379,6 +388,8 @@ class SynthesisBlock(torch.nn.Module):
                 resample_filter=resample_filter, channels_last=self.channels_last)
 
     def forward(self, x, img, ws, force_fp32=False, fused_modconv=None, return_x=True, **layer_kwargs):
+        if self.force_rf_buffer:
+            assert self.in_channels == 0 or img is not None
         misc.assert_shape(ws, [None, self.num_conv + self.num_torgb, self.w_dim])
         w_iter = iter(ws.unbind(dim=1))
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
