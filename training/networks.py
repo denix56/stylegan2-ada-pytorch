@@ -610,12 +610,12 @@ class DiscriminatorBlock(torch.nn.Module):
         # Input.
         if x is not None:
              misc.assert_shape(x, [None, self.in_channels, self.resolution, self.resolution])
-             x = x.to(dtype=dtype, memory_format=memory_format)
+             #x = x.to(dtype=dtype, memory_format=memory_format)
 
         # FromRGB.
         if self.use_img():
             misc.assert_shape(img, [None, self.img_channels, self.resolution, self.resolution])
-            img = img.to(dtype=dtype, memory_format=memory_format)
+            #img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
             x = x + y if x is not None else y
             x *= self.param
