@@ -735,25 +735,26 @@ class Discriminator(torch.nn.Module):
                 first_layer_idx=cur_layer_idx, use_fp16=use_fp16, **block_kwargs, **common_kwargs)
             setattr(self, f'b{res}', block)
             cur_layer_idx += block.num_layers
-        if c_dim > 0:
-            self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
-        self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
+            break
+        #if c_dim > 0:
+        #    self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
+        #self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
 
     def forward(self, img, c, **block_kwargs):
         x = None
         return_img = False
         for i, res in enumerate(self.block_resolutions):
             block = getattr(self, f'b{res}')
-            if return_img:
-                if i < len(self.block_resolutions)-1:
-                    next_block = getattr(self, f'b{self.block_resolutions[i+1]}')
-                    return_img = next_block.use_img()
-                else:
-                    return_img = self.b4.use_img()
-            if return_img:
-                x, img = block(x, img, return_img=return_img, **block_kwargs)
-            else:
-                x = block(x, img, return_img=return_img, **block_kwargs)
+            # if return_img:
+            #     if i < len(self.block_resolutions)-1:
+            #         next_block = getattr(self, f'b{self.block_resolutions[i+1]}')
+            #         return_img = next_block.use_img()
+            #     else:
+            #         return_img = self.b4.use_img()
+            # if return_img:
+            #     x, img = block(x, img, return_img=return_img, **block_kwargs)
+            # else:
+            x = block(x, img, return_img=return_img, **block_kwargs)
             return x
 
         # cmap = None
