@@ -544,7 +544,7 @@ class DiscriminatorBlock(torch.nn.Module):
         self.architecture = architecture
         self.use_fp16 = use_fp16
         self.channels_last = (use_fp16 and fp16_channels_last)
-        #self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+        self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
 
         self.num_layers = 0
         def trainable_gen():
@@ -587,7 +587,7 @@ class DiscriminatorBlock(torch.nn.Module):
             img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
             x = x + y if x is not None else y
-            #img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
+            img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
 
         # Main layers.
         # if self.architecture == 'resnet':
