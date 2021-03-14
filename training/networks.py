@@ -163,9 +163,9 @@ class Conv2dLayer(torch.nn.Module):
         w = self.weight * self.weight_gain
         b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
         flip_weight = (self.up == 1) # slightly faster
-        x = F.conv2d(input=x, weight=w.to(dtype=x.dtype), bias=b, padding=self.padding)
-        # x = conv2d_resample.conv2d_resample(x=x, w=w.to(dtype=x.dtype), f=self.resample_filter,
-        #                                     up=self.up, down=self.down, padding=self.padding, flip_weight=flip_weight)
+        #x = F.conv2d(input=x, weight=w.to(dtype=x.dtype), bias=b, padding=self.padding)
+        x = conv2d_resample.conv2d_resample(x=x, w=w.to(dtype=x.dtype), f=self.resample_filter,
+                                            up=self.up, down=self.down, padding=self.padding, flip_weight=flip_weight)
 
         # act_gain = self.act_gain * gain
         # act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
