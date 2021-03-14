@@ -141,7 +141,7 @@ class Conv2dLayer(torch.nn.Module):
         self.up = up
         self.down = down
         self.conv_clamp = conv_clamp
-        self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+        #self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
         self.padding = kernel_size // 2
         self.weight_gain = 1 / np.sqrt(in_channels * (kernel_size ** 2))
         self.act_gain = bias_act.activation_funcs[activation].def_gain
@@ -161,11 +161,11 @@ class Conv2dLayer(torch.nn.Module):
 
     def forward(self, x, gain=1):
         w = (self.weight * self.weight_gain).to(dtype=x.dtype)
-        b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
-        flip_weight = (self.up == 1) # slightly faster
+        #b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
+        #flip_weight = (self.up == 1) # slightly faster
         #x = F.conv2d(input=x, weight=w, bias=None, padding=self.padding)
-        x = conv2d_resample.conv2d_resample(x=x, w=w, f=self.resample_filter,
-                                            up=self.up, down=self.down, padding=self.padding, flip_weight=flip_weight)
+        x = conv2d_resample.conv2d_resample(x=x, w=w,
+                                            padding=self.padding)
 
         # act_gain = self.act_gain * gain
         # act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
