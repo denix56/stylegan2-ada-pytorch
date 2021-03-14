@@ -590,7 +590,7 @@ class DiscriminatorBlock(torch.nn.Module):
             img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
             x = x + y if x is not None else y
-            img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
+            #img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         print(self.architecture)
         # Main layers.
         # if self.architecture == 'resnet':
@@ -603,7 +603,7 @@ class DiscriminatorBlock(torch.nn.Module):
         #x = self.conv1(x)
 
         #assert x.dtype == dtype
-        return x, img
+        return x
 
 #----------------------------------------------------------------------------
 
@@ -755,7 +755,7 @@ class Discriminator(torch.nn.Module):
             # if return_img:
             #     x, img = block(x, img, return_img=return_img, **block_kwargs)
             # else:
-            x, img = block(x, img, return_img=return_img, **block_kwargs)
+            x = block(x, img, return_img=return_img, **block_kwargs)
             return x
 
         # cmap = None
