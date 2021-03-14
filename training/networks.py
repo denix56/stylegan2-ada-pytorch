@@ -293,7 +293,7 @@ class SynthesisLayer(torch.nn.Module):
         in_resolution = self.resolution // self.up
         misc.assert_shape(x, [None, self.weight.shape[1], in_resolution, in_resolution])
         styles = self.affine(w)
-
+        print(noise_mode)
         noise = None
         if self.use_noise and noise_mode == 'random':
             noise = torch.randn([x.shape[0], 1, self.resolution, self.resolution], device=x.device) * self.noise_strength
