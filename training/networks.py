@@ -161,15 +161,17 @@ class Conv2dLayer(torch.nn.Module):
                 self.bias = None
 
     def forward(self, x, gain=1):
-        w = self.weight * self.weight_gain
+        print(x.requires_grad)
+        w = (self.weight * self.weight_gain).to(dtype=x.dtype)
         b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
         flip_weight = (self.up == 1) # slightly faster
-        x = conv2d_resample.conv2d_resample(x=x, w=w.to(dtype=x.dtype), f=self.resample_filter,
+        x = conv2d_resample.conv2d_resample(x=x, w=w, f=self.resample_filter,
                                             up=self.up, down=self.down, padding=self.padding, flip_weight=flip_weight)
 
         act_gain = self.act_gain * gain
         act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
         x = bias_act.bias_act(x, b, act=self.activation, gain=act_gain, clamp=act_clamp)
+        print(x.requires_grad, w.requires_grad)
         return x
 
 #----------------------------------------------------------------------------
@@ -574,7 +576,6 @@ class DiscriminatorBlock(torch.nn.Module):
                 layer_idx = self.first_layer_idx + self.num_layers
                 trainable = (layer_idx >= freeze_layers)
                 self.num_layers += 1
-                print(trainable)
                 yield trainable
         trainable_iter = trainable_gen()
 
