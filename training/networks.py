@@ -284,7 +284,7 @@ class SynthesisLayer(torch.nn.Module):
         memory_format = torch.channels_last if channels_last else torch.contiguous_format
         self.weight = torch.nn.Parameter(torch.randn([out_channels, in_channels, kernel_size, kernel_size]).to(memory_format=memory_format))
         if use_noise:
-            self.register_buffer('noise_const', torch.randn([resolution, resolution]))
+            #self.register_buffer('noise_const', torch.randn([resolution, resolution]))
             self.noise_strength = torch.nn.Parameter(torch.zeros([]))
         self.bias = torch.nn.Parameter(torch.zeros([out_channels]))
 
@@ -297,7 +297,7 @@ class SynthesisLayer(torch.nn.Module):
         noise = None
         if self.use_noise and noise_mode == 'random':
             noise = torch.randn([x.shape[0], 1, self.resolution, self.resolution], device=x.device) * self.noise_strength
-            noise += self.noise_const.expand_as(noise) * 0
+            #noise += self.noise_const.expand_as(noise) * 0
         if self.use_noise and noise_mode == 'const':
             noise = self.noise_const * self.noise_strength
 
