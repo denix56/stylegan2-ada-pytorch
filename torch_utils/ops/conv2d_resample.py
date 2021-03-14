@@ -16,6 +16,8 @@ from . import upfirdn2d
 from .upfirdn2d import _parse_padding
 from .upfirdn2d import _get_filter_size
 
+import torch.nn.functional as F
+
 #----------------------------------------------------------------------------
 
 def _get_weight_shape(w):
@@ -85,14 +87,14 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
         Tensor of the shape `[batch_size, num_channels, out_height, out_width]`.
     """
     # Validate arguments.
-    assert isinstance(x, torch.Tensor) and (x.ndim == 4)
-    assert isinstance(w, torch.Tensor) and (w.ndim == 4) and (w.dtype == x.dtype)
-    assert f is None or (isinstance(f, torch.Tensor) and f.ndim in [1, 2] and f.dtype == torch.float32)
-    assert isinstance(up, int) and (up >= 1)
-    assert isinstance(down, int) and (down >= 1)
-    assert isinstance(groups, int) and (groups >= 1)
-    out_channels, in_channels_per_group, kh, kw = _get_weight_shape(w)
-    fw, fh = _get_filter_size(f)
+    # assert isinstance(x, torch.Tensor) and (x.ndim == 4)
+    # assert isinstance(w, torch.Tensor) and (w.ndim == 4) and (w.dtype == x.dtype)
+    # assert f is None or (isinstance(f, torch.Tensor) and f.ndim in [1, 2] and f.dtype == torch.float32)
+    # assert isinstance(up, int) and (up >= 1)
+    # assert isinstance(down, int) and (down >= 1)
+    # assert isinstance(groups, int) and (groups >= 1)
+    # out_channels, in_channels_per_group, kh, kw = _get_weight_shape(w)
+    # fw, fh = _get_filter_size(f)
     px0, px1, py0, py1 = _parse_padding(padding)
 
     # Adjust padding to account for up/downsampling.
@@ -154,10 +156,12 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
     #     return x
 
     # Fast path: no up/downsampling, padding supported by the underlying implementation => use plain conv2d.
-    if up == 1 and down == 1:
-        if px0 == px1 and py0 == py1 and px0 >= 0 and py0 >= 0:
-            print(9, py0,px0)
-            return torch.nn.functional.conv2d(input=x, weight=w, bias=None, padding=[py0,px0])
+    return F.conv2d(input=x, weight=w, bias=None, padding=[py0, px0])
+
+    # if up == 1 and down == 1:
+    #     if px0 == px1 and py0 == py1 and px0 >= 0 and py0 >= 0:
+    #         print(9, py0,px0)
+    #         return F.conv2d(input=x, weight=w, bias=None, padding=[py0,px0])
             #return _conv2d_wrapper(x=x, w=w, padding=[py0,px0], groups=groups, flip_weight=flip_weight)
 
     # # Fallback: Generic reference implementation.
