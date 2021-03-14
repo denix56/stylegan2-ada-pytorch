@@ -56,7 +56,7 @@ class StyleGAN2(pl.LightningModule):
         #self.metrics = nn.ModuleList(metrics)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, labels, _, _ = batch
+        imgs, labels = batch
         if optimizer_idx == 0:
             return self._loss1(imgs, labels, None, None, 0, True, True)
         else:
