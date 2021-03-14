@@ -104,8 +104,8 @@ class StyleGAN2(pl.LightningModule):
         return img, ws
 
     def _disc_run(self, img: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
-        if self.augment_pipe is not None:
-            img = self.augment_pipe(img)
+        # if self.augment_pipe is not None:
+        #     img = self.augment_pipe(img)
         logits = self.D(img, c)
         return logits
 
