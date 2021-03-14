@@ -554,8 +554,10 @@ class DiscriminatorBlock(torch.nn.Module):
                 yield trainable
         trainable_iter = trainable_gen()
 
-        if in_channels == 0 or architecture == 'skip':
+        if architecture == 'skip':
             self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+
+        if in_channels == 0 or architecture == 'skip':
             self.fromrgb = Conv2dLayer(img_channels, tmp_channels, kernel_size=1, activation=activation,
                 trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
 
@@ -586,8 +588,8 @@ class DiscriminatorBlock(torch.nn.Module):
             print(self.in_channels, self.architecture)
             misc.assert_shape(img, [None, self.img_channels, self.resolution, self.resolution])
             img = img.to(dtype=dtype, memory_format=memory_format)
-            #y = self.fromrgb(img)
-            #x = x + y if x is not None else y
+            y = self.fromrgb(img)
+            x = x + y if x is not None else y
             img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         print(self.architecture)
         # Main layers.
@@ -754,7 +756,7 @@ class Discriminator(torch.nn.Module):
             #     x, img = block(x, img, return_img=return_img, **block_kwargs)
             # else:
             x, img = block(x, img, return_img=return_img, **block_kwargs)
-            return img
+            return x
 
         # cmap = None
         # if self.c_dim > 0:
