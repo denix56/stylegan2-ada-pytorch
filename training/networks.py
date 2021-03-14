@@ -577,17 +577,17 @@ class DiscriminatorBlock(torch.nn.Module):
         memory_format = torch.channels_last if self.channels_last and not force_fp32 else torch.contiguous_format
 
         # Input.
-        if x is not None:
-             misc.assert_shape(x, [None, self.in_channels, self.resolution, self.resolution])
-             x = x.to(dtype=dtype, memory_format=memory_format)
+        # if x is not None:
+        #      misc.assert_shape(x, [None, self.in_channels, self.resolution, self.resolution])
+        #      x = x.to(dtype=dtype, memory_format=memory_format)
 
         # FromRGB.
         if self.use_img():
             print(self.in_channels, self.architecture)
             misc.assert_shape(img, [None, self.img_channels, self.resolution, self.resolution])
             img = img.to(dtype=dtype, memory_format=memory_format)
-            y = self.fromrgb(img)
-            x = x + y if x is not None else y
+            #y = self.fromrgb(img)
+            #x = x + y if x is not None else y
             img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         print(self.architecture)
         # Main layers.
@@ -597,10 +597,10 @@ class DiscriminatorBlock(torch.nn.Module):
         #     x = self.conv1(x, gain=np.sqrt(0.5))
         #     x = y.add_(x)
         # else:
-        x = self.conv0(x)
-        x = self.conv1(x)
+        #x = self.conv0(x)
+        #x = self.conv1(x)
 
-        assert x.dtype == dtype
+        #assert x.dtype == dtype
         return x, img
 
 #----------------------------------------------------------------------------
