@@ -757,7 +757,7 @@ class Discriminator(torch.nn.Module):
             # if return_img:
             #     x, img = block(x, img, return_img=return_img, **block_kwargs)
             # else:
-            x = block(x, img, return_img=return_img, **block_kwargs)
+            x, img = block(x, img, return_img=return_img, **block_kwargs)
             return x
 
         # cmap = None
