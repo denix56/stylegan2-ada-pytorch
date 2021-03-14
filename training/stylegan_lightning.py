@@ -115,7 +115,7 @@ class StyleGAN2(pl.LightningModule):
             for param in group['params']:
                 param.requires_grad = param_requires_grad_state[param]
         self._param_requires_grad_state = param_requires_grad_state
-        print(param_requires_grad_state)
+        print(param_requires_grad_state.values())
 
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
