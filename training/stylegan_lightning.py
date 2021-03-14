@@ -52,8 +52,8 @@ class StyleGAN2(pl.LightningModule):
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
 
-        for param in phase.module.parameters():
-            print(param)
+        for k, v in phase.module.state_dict().items():
+            print(k, v)
         return loss
 
     # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
