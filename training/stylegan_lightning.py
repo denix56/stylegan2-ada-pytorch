@@ -229,7 +229,7 @@ class StyleGAN2(pl.LightningModule):
                 self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
                 opts.append(opt)
 
-        self.datamodule.setup_noise_params(len(self.phases), self.G.z_dim)
+        self.datamodule.setup_noise_params(len(self.phases), 128)
 
         return opts
 
