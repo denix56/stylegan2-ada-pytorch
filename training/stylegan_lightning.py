@@ -18,7 +18,7 @@ class StyleGAN2(pl.LightningModule):
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
         self.G = D
-        self.D = copy.deepcopy(self.G)
+        self.D = D
         self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
@@ -51,6 +51,7 @@ class StyleGAN2(pl.LightningModule):
 
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
+        print(loss)
         return loss
 
     # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
