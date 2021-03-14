@@ -490,7 +490,7 @@ class SynthesisNetwork(torch.nn.Module):
                 w_idx += block.num_conv
 
         x = img = None
-        for i, res, cur_ws in enumerate(zip(self.block_resolutions, block_ws)):
+        for i, (res, cur_ws) in enumerate(zip(self.block_resolutions, block_ws)):
             # if i > 1:
             #     break
             block = getattr(self, f'b{res}')
