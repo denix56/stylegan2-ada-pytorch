@@ -98,6 +98,25 @@ class StyleGAN2(pl.LightningModule):
             for metric in self.metrics:
                 metric.reset()
 
+    def toggle_optimizer(self, optimizer, optimizer_idx: int):
+        param_requires_grad_state = {}
+        for opt in self.optimizers(use_pl_optimizer=False):
+            for group in opt.param_groups:
+                for param in group['params']:
+                    # If a param already appear in param_requires_grad_state, continue
+                    if param in param_requires_grad_state:
+                        continue
+                    param_requires_grad_state[param] = param.requires_grad
+                    param.requires_grad = False
+
+        # Then iterate over the current optimizer's parameters and set its `requires_grad`
+        # properties accordingly
+        for group in optimizer.param_groups:
+            for param in group['params']:
+                param.requires_grad = param_requires_grad_state[param]
+        self._param_requires_grad_state = param_requires_grad_state
+        print(param_requires_grad_state)
+
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
         # if self.style_mixing_prob > 0:
