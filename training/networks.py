@@ -623,7 +623,10 @@ class DiscriminatorBlock(torch.nn.Module):
         else:
             x = self.conv0(x)
             x = self.conv1(x)
-        print(x.requires_grad, img.requires_grad)
+        if x is not None:
+            print('x', x.requires_grad)
+        if img is not None:
+            print('img', img.requires_grad)
         assert x.dtype == dtype
         return x, img
 
