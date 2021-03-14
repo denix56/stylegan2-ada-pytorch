@@ -478,6 +478,7 @@ class SynthesisNetwork(torch.nn.Module):
             misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
             ws = ws.to(torch.float32)
             w_idx = 0
+            print(ws.shape)
             for i, res in enumerate(self.block_resolutions):
                 if i > 1:
                     break
