@@ -14,8 +14,6 @@ from torch_utils.ops import conv2d_resample
 from torch_utils.ops import upfirdn2d
 from torch_utils.ops import bias_act
 from torch_utils.ops import fma
-import pytorch_lightning as pl
-import torch.nn.functional as F
 
 #----------------------------------------------------------------------------
 

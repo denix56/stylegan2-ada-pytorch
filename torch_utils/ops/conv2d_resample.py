@@ -16,8 +16,6 @@ from . import upfirdn2d
 from .upfirdn2d import _parse_padding
 from .upfirdn2d import _get_filter_size
 
-import torch.nn.functional as F
-
 #----------------------------------------------------------------------------
 
 def _get_weight_shape(w):
@@ -146,7 +144,6 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
     # Fast path: no up/downsampling, padding supported by the underlying implementation => use plain conv2d.
     if up == 1 and down == 1:
         if px0 == px1 and py0 == py1 and px0 >= 0 and py0 >= 0:
-            print(9, py0,px0, f)
             return _conv2d_wrapper(x=x, w=w, padding=[py0,px0], groups=groups, flip_weight=flip_weight)
 
     # # Fallback: Generic reference implementation.
