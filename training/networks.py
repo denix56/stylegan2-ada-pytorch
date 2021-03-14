@@ -600,10 +600,7 @@ class DiscriminatorBlock(torch.nn.Module):
             x = self.conv1(x)
 
         assert x.dtype == dtype
-        if return_img:
-            return x, img
-        else:
-            return x
+        return x, img
 
 #----------------------------------------------------------------------------
 
@@ -754,7 +751,7 @@ class Discriminator(torch.nn.Module):
             # if return_img:
             #     x, img = block(x, img, return_img=return_img, **block_kwargs)
             # else:
-            x = block(x, img, return_img=return_img, **block_kwargs)
+            x, img = block(x, img, return_img=return_img, **block_kwargs)
             return x
 
         # cmap = None
