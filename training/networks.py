@@ -618,7 +618,7 @@ class DiscriminatorBlock(torch.nn.Module):
             #img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
             x = x + y if x is not None else y
-            x *= self.param
+            x = x * self.param
             #img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         # Main layers.
         # if self.architecture == 'resnet':
