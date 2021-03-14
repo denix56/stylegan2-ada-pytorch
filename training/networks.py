@@ -583,9 +583,10 @@ class DiscriminatorBlock(torch.nn.Module):
         #     self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
 
         if in_channels == 0 or architecture == 'skip':
-            self.fromrgb = Conv2dLayer(img_channels, tmp_channels, kernel_size=1, activation=activation,
-                trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
+            # self.fromrgb = Conv2dLayer(img_channels, tmp_channels, kernel_size=1, activation=activation,
+            #     trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
             self.fromrgb = torch.nn.Conv2d(img_channels, tmp_channels, kernel_size=1)
+            self.fromrgb = torch.nn.Identity()
 
             # self.conv0 = Conv2dLayer(tmp_channels, tmp_channels, kernel_size=3, activation=activation,
         #     trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
