@@ -29,7 +29,7 @@ class StyleGAN2(pl.LightningModule):
 
         self.G_reg_interval = G_reg_interval
         self.D_reg_interval = D_reg_interval
-        self.phases = None
+        self.phases = []
 
         self.style_mixing_prob = style_mixing_prob
         self.r1_gamma = r1_gamma
