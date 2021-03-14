@@ -52,7 +52,7 @@ class StyleGAN2(pl.LightningModule):
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
         print(loss)
-        print(loss.requres_grad)
+        print(loss.requires_grad)
         return loss
 
     # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
