@@ -151,7 +151,7 @@ class StyleGAN2(pl.LightningModule):
     # Dr1: Apply R1 regularization.
     def _disc_max_logits_r1_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gain: int,
                          do_main: bool, do_reg: bool) -> torch.Tensor:
-        real_img_tmp = real_img.requires_grad_(True)
+        real_img_tmp = real_img.detach().requires_grad_(do_reg)
         real_logits = self._disc_run(real_img_tmp, real_c)
         return real_logits.mean()
         # training_stats.report('Loss/scores/real', real_logits)
