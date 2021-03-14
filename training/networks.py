@@ -576,6 +576,7 @@ class DiscriminatorBlock(torch.nn.Module):
         return self.in_channels == 0 or self.architecture == 'skip'
 
     def forward(self, x, img, force_fp32=False, return_img=True):
+        force_fp32 = True
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
         memory_format = torch.channels_last if self.channels_last and not force_fp32 else torch.contiguous_format
 
