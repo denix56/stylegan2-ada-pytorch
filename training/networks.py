@@ -614,7 +614,6 @@ class DiscriminatorBlock(torch.nn.Module):
             img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
             x = x + y if x is not None else y
-            print(x.requires_grad)
             img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         # Main layers.
         if self.architecture == 'resnet':
@@ -625,12 +624,9 @@ class DiscriminatorBlock(torch.nn.Module):
         else:
             x = self.conv0(x)
             x = self.conv1(x)
-        if x is not None:
-            print('x', x.requires_grad)
-        if img is not None:
-            print('img', img.requires_grad)
+
         assert x.dtype == dtype
-        return x, img
+        return x
 
 #----------------------------------------------------------------------------
 
@@ -762,9 +758,10 @@ class Discriminator(torch.nn.Module):
                 first_layer_idx=cur_layer_idx, use_fp16=use_fp16, **block_kwargs, **common_kwargs)
             setattr(self, f'b{res}', block)
             cur_layer_idx += block.num_layers
-        if c_dim > 0:
-           self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
-        self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
+            break
+        # if c_dim > 0:
+        #    self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
+        # self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
 
     def forward(self, img, c, **block_kwargs):
         x = None
@@ -779,12 +776,13 @@ class Discriminator(torch.nn.Module):
             # if return_img:
             #     x, img = block(x, img, return_img=return_img, **block_kwargs)
             # else:
-            x, img = block(x, img, **block_kwargs)
+            x = block(x, img, **block_kwargs)
+            return x
 
-        cmap = None
-        if self.c_dim > 0:
-            cmap = self.mapping(None, c)
-        x = self.b4(x, img, cmap)
+        # cmap = None
+        # if self.c_dim > 0:
+        #     cmap = self.mapping(None, c)
+        # x = self.b4(x, img, cmap)
         return x
 
 #----------------------------------------------------------------------------
