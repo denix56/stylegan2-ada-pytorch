@@ -601,7 +601,7 @@ class DiscriminatorBlock(torch.nn.Module):
         #     x = self.conv1(x, gain=np.sqrt(0.5))
         #     x = y.add_(x)
         # else:
-        x = self.conv0(x)
+        #x = self.conv0(x)
         #x = self.conv1(x)
 
         assert x.dtype == dtype
