@@ -93,11 +93,13 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
 
     # Adjust padding to account for up/downsampling.
     if up > 1:
+        print('1')
         px0 += (fw + up - 1) // 2
         px1 += (fw - up) // 2
         py0 += (fh + up - 1) // 2
         py1 += (fh - up) // 2
     if down > 1:
+        print(2)
         px0 += (fw - down + 1) // 2
         px1 += (fw - down) // 2
         py0 += (fh - down + 1) // 2
@@ -105,18 +107,21 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
 
     # Fast path: 1x1 convolution with downsampling only => downsample first, then convolve.
     if kw == 1 and kh == 1 and (down > 1 and up == 1):
+        print(3)
         x = upfirdn2d.upfirdn2d(x=x, f=f, down=down, padding=[px0,px1,py0,py1], flip_filter=flip_filter)
         x = _conv2d_wrapper(x=x, w=w, groups=groups, flip_weight=flip_weight)
         return x
 
     # Fast path: 1x1 convolution with upsampling only => convolve first, then upsample.
     if kw == 1 and kh == 1 and (up > 1 and down == 1):
+        print(4)
         x = _conv2d_wrapper(x=x, w=w, groups=groups, flip_weight=flip_weight)
         x = upfirdn2d.upfirdn2d(x=x, f=f, up=up, padding=[px0,px1,py0,py1], gain=up**2, flip_filter=flip_filter)
         return x
 
     # Fast path: downsampling only => use strided convolution.
     if down > 1 and up == 1:
+        print(5)
         x = upfirdn2d.upfirdn2d(x=x, f=f, padding=[px0,px1,py0,py1], flip_filter=flip_filter)
         x = _conv2d_wrapper(x=x, w=w, stride=down, groups=groups, flip_weight=flip_weight)
         return x
@@ -124,8 +129,10 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
     # Fast path: upsampling with optional downsampling => use transpose strided convolution.
     if up > 1:
         if groups == 1:
+            print(6)
             w = w.transpose(0, 1)
         else:
+            print(7)
             w = w.reshape(groups, out_channels // groups, in_channels_per_group, kh, kw)
             w = w.transpose(1, 2)
             w = w.reshape(groups * in_channels_per_group, out_channels // groups, kh, kw)
@@ -138,19 +145,23 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
         x = _conv2d_wrapper(x=x, w=w, stride=up, padding=[pyt,pxt], groups=groups, transpose=True, flip_weight=(not flip_weight))
         x = upfirdn2d.upfirdn2d(x=x, f=f, padding=[px0+pxt,px1+pxt,py0+pyt,py1+pyt], gain=up**2, flip_filter=flip_filter)
         if down > 1:
+            print(8)
             x = upfirdn2d.upfirdn2d(x=x, f=f, down=down, flip_filter=flip_filter)
         return x
 
     # Fast path: no up/downsampling, padding supported by the underlying implementation => use plain conv2d.
     if up == 1 and down == 1:
         if px0 == px1 and py0 == py1 and px0 >= 0 and py0 >= 0:
+            print(9)
             return _conv2d_wrapper(x=x, w=w, padding=[py0,px0], groups=groups, flip_weight=flip_weight)
 
     # Fallback: Generic reference implementation.
     x = upfirdn2d.upfirdn2d(x=x, f=(f if up > 1 else None), up=up, padding=[px0,px1,py0,py1], gain=up**2, flip_filter=flip_filter)
     x = _conv2d_wrapper(x=x, w=w, groups=groups, flip_weight=flip_weight)
     if down > 1:
+        print(10)
         x = upfirdn2d.upfirdn2d(x=x, f=f, down=down, flip_filter=flip_filter)
+    print(11)
     return x
 
 #----------------------------------------------------------------------------
