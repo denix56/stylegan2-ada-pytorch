@@ -155,7 +155,7 @@ class StyleGAN2(pl.LightningModule):
                          do_main: bool, do_reg: bool) -> torch.Tensor:
         real_img_tmp = real_img
         real_logits = self._disc_run(real_img_tmp, real_c)
-        return real_logits.mean()
+        return F.softplus(-real_logits)
         # training_stats.report('Loss/scores/real', real_logits)
         # training_stats.report('Loss/signs/real', real_logits.sign())
         loss_Dreal = 0
