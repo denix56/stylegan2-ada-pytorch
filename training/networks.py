@@ -458,8 +458,7 @@ class SynthesisNetwork(torch.nn.Module):
         fp16_resolution = max(2 ** (self.img_resolution_log2 + 1 - num_fp16_res), 8)
 
         self.num_ws = 0
-        i = 0
-        for res in self.block_resolutions:
+        for i, res in enumerate(self.block_resolutions):
             if i > 1:
                 break
             in_channels = channels_dict[res // 2] if res > 4 else 0
@@ -472,7 +471,6 @@ class SynthesisNetwork(torch.nn.Module):
             if is_last:
                 self.num_ws += block.num_torgb
             setattr(self, f'b{res}', block)
-            i += 1
 
     def forward(self, ws, **block_kwargs):
         block_ws = []
