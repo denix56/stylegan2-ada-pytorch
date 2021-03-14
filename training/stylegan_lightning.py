@@ -56,11 +56,14 @@ class StyleGAN2(pl.LightningModule):
         #self.metrics = nn.ModuleList(metrics)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, labels, all_gen_z, all_gen_c = batch
-
-        phase = self.phases[optimizer_idx]
-        loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
-        return loss
+        imgs, labels, _, _ = batch
+        if optimizer_idx == 0:
+            return self._loss1(imgs, labels, None, None, 0, True, True)
+        else:
+            return self._loss2(imgs, labels, None, None, 0, True, True)
+        # phase = self.phases[optimizer_idx]
+        # loss = phase.loss(imgs, labels, None, None)
+        #return loss
 
     # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
     #     # Update G_ema.
@@ -75,14 +78,14 @@ class StyleGAN2(pl.LightningModule):
     #
     #     self.cur_nimg += self.batch_size
 
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
-                       on_tpu, using_native_amp, using_lbfgs):
-        phase = self.phases[optimizer_idx]
-        if batch_idx % phase.interval == 0:
-            for param in phase.module.parameters():
-                if param.grad is not None:
-                    misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
-        optimizer.step(closure=optimizer_closure)
+    # def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
+    #                    on_tpu, using_native_amp, using_lbfgs):
+    #     phase = self.phases[optimizer_idx]
+    #     if batch_idx % phase.interval == 0:
+    #         for param in phase.module.parameters():
+    #             if param.grad is not None:
+    #                 misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
+    #     optimizer.step(closure=optimizer_closure)
 
         # if batch_idx > 7:
         #     state_dict_old = torch.load('state_{}.pth'.format(optimizer_idx))['state_dict']
@@ -222,47 +225,52 @@ class StyleGAN2(pl.LightningModule):
 
     def _loss1(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
-        loss = self._gen_run(gen_z, gen_c)
-        loss = loss.mean()
+        loss = self._gen_run(real_img, real_c)
+        loss = (real_img-loss).mean()
         return loss
 
     def _loss2(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         loss = self._disc_run(real_img, real_c)
-        loss = loss.mean()
+        loss = (real_img-loss).mean()
         return loss
 
     def configure_optimizers(self):
-        self.phases = []
         opts = []
-
-        for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._loss1),
-                                                   ('D', self.D, self._D_opt_kwargs, None, self._loss2)
-        ]):
-            if reg_interval is None:
-                opt = dnnlib.util.construct_class_by_name(params=module.parameters(),
-                                                          **opt_kwargs)  # subclass of torch.optim.Optimizer
-                loss = partial(loss_, do_main=True, do_reg=True, gain=1)
-                self.phases += [dnnlib.EasyDict(name=name + 'both', module=module, opt=i, interval=1, loss=loss)]
-                opts.append(opt)
-            else:  # Lazy regularization.
-                mb_ratio = reg_interval / (reg_interval + 1)
-                opt_kwargs = dnnlib.EasyDict(opt_kwargs)
-                opt_kwargs.lr = opt_kwargs.lr * mb_ratio
-                opt_kwargs.betas = [beta ** mb_ratio for beta in opt_kwargs.betas]
-                opt = dnnlib.util.construct_class_by_name(module.parameters(),
-                                                          **opt_kwargs)  # subclass of torch.optim.Optimizer
-                loss = partial(loss_, do_main=True, do_reg=False, gain=1)
-                self.phases += [dnnlib.EasyDict(name=name + 'main', module=module, interval=1, loss=loss)]
-                opts.append(opt)
-                opt = dnnlib.util.construct_class_by_name(module.parameters(),
-                                                          **opt_kwargs)  # subclass of torch.optim.Optimizer
-                loss = partial(loss_, do_main=False, do_reg=True, gain=reg_interval)
-                self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
-                opts.append(opt)
-
-        self.datamodule.setup_noise_params(len(self.phases), 128)
+        opt = torch.optim.Adam(self.G.parameters(), 0.001)
+        opts.append(opt)
+        opt = torch.optim.Adam(self.D.parameters(), 0.001)
+        opts.append(opt)
+        # self.phases = []
+        # opts = []
+        #
+        # for i, (name, module, opt_kwargs,
+        #         reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._loss1),
+        #                                            ('D', self.D, self._D_opt_kwargs, None, self._loss2)
+        # ]):
+        #     if reg_interval is None:
+        #         opt = dnnlib.util.construct_class_by_name(params=module.parameters(),
+        #                                                   **opt_kwargs)  # subclass of torch.optim.Optimizer
+        #         loss = partial(loss_, do_main=True, do_reg=True, gain=1)
+        #         self.phases += [dnnlib.EasyDict(name=name + 'both', module=module, opt=i, interval=1, loss=loss)]
+        #         opts.append(opt)
+        #     else:  # Lazy regularization.
+        #         mb_ratio = reg_interval / (reg_interval + 1)
+        #         opt_kwargs = dnnlib.EasyDict(opt_kwargs)
+        #         opt_kwargs.lr = opt_kwargs.lr * mb_ratio
+        #         opt_kwargs.betas = [beta ** mb_ratio for beta in opt_kwargs.betas]
+        #         opt = dnnlib.util.construct_class_by_name(module.parameters(),
+        #                                                   **opt_kwargs)  # subclass of torch.optim.Optimizer
+        #         loss = partial(loss_, do_main=True, do_reg=False, gain=1)
+        #         self.phases += [dnnlib.EasyDict(name=name + 'main', module=module, interval=1, loss=loss)]
+        #         opts.append(opt)
+        #         opt = dnnlib.util.construct_class_by_name(module.parameters(),
+        #                                                   **opt_kwargs)  # subclass of torch.optim.Optimizer
+        #         loss = partial(loss_, do_main=False, do_reg=True, gain=reg_interval)
+        #         self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
+        #         opts.append(opt)
+        #
+        # self.datamodule.setup_noise_params(len(self.phases), 128)
 
         return opts
 
