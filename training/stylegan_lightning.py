@@ -98,25 +98,6 @@ class StyleGAN2(pl.LightningModule):
             for metric in self.metrics:
                 metric.reset()
 
-    def toggle_optimizer(self, optimizer, optimizer_idx: int):
-        param_requires_grad_state = {}
-        for opt in self.optimizers(use_pl_optimizer=False):
-            for group in opt.param_groups:
-                for param in group['params']:
-                    # If a param already appear in param_requires_grad_state, continue
-                    if param in param_requires_grad_state:
-                        continue
-                    param_requires_grad_state[param] = param.requires_grad
-                    param.requires_grad = False
-
-        # Then iterate over the current optimizer's parameters and set its `requires_grad`
-        # properties accordingly
-        for group in optimizer.param_groups:
-            for param in group['params']:
-                param.requires_grad = param_requires_grad_state[param]
-        self._param_requires_grad_state = param_requires_grad_state
-        print(param_requires_grad_state.values())
-
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
         # if self.style_mixing_prob > 0:
@@ -194,6 +175,10 @@ class StyleGAN2(pl.LightningModule):
     def _gen_loss(self, real_img: torch.Tensor,
                   real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                   gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
+        D_, self.D = self.D, self.G
+        loss = self._disc_loss(real_img, real_c, gen_z, gen_c,gain,do_main, do_reg)
+        self.D = D_
+        return loss
         loss = None
         do_reg = do_reg and self.pl_weight != 0
         do_reg = False
@@ -227,7 +212,7 @@ class StyleGAN2(pl.LightningModule):
         opts = []
 
         for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._disc_loss),
+                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._gen_loss),
                                                   ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
         ]):
             if reg_interval is None:
