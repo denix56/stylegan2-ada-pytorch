@@ -194,6 +194,12 @@ class StyleGAN2(pl.LightningModule):
             loss = torch.zeros(1, device=self.device)
         return loss
 
+    def _disc_loss2(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
+                   gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
+        real_img_tmp = real_img.detach().requires_grad_(do_reg)
+        real_logits = self.G(real_img_tmp, real_c)
+        return real_logits.mean()
+
     def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         do_reg = do_reg and self.r1_gamma != 0
@@ -214,7 +220,7 @@ class StyleGAN2(pl.LightningModule):
         opts = []
 
         for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._gen_loss),
+                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._disc_loss2),
                                                   ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
         ]):
             if reg_interval is None:
