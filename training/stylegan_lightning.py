@@ -53,18 +53,18 @@ class StyleGAN2(pl.LightningModule):
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
         return loss
 
-    def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
-        # Update G_ema.
-        ema_nimg = self.ema_kimg * 1000
-        if self.ema_rampup is not None:
-            ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
-        ema_beta = 0.5 ** (self.batch_size / max(ema_nimg, 1e-8))
-        for p_ema, p in zip(self.G_ema.parameters(), self.G.parameters()):
-            p_ema.copy_(p.lerp(p_ema, ema_beta))
-        for b_ema, b in zip(self.G_ema.buffers(), self.G.buffers()):
-            b_ema.copy_(b)
-
-        self.cur_nimg += self.batch_size
+    # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
+    #     # Update G_ema.
+    #     ema_nimg = self.ema_kimg * 1000
+    #     if self.ema_rampup is not None:
+    #         ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
+    #     ema_beta = 0.5 ** (self.batch_size / max(ema_nimg, 1e-8))
+    #     for p_ema, p in zip(self.G_ema.parameters(), self.G.parameters()):
+    #         p_ema.copy_(p.lerp(p_ema, ema_beta))
+    #     for b_ema, b in zip(self.G_ema.buffers(), self.G.buffers()):
+    #         b_ema.copy_(b)
+    #
+    #     self.cur_nimg += self.batch_size
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
                        on_tpu, using_native_amp, using_lbfgs):
