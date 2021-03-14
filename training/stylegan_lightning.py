@@ -17,7 +17,7 @@ class StyleGAN2(pl.LightningModule):
                  style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2,
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
-        self.G = G
+        self.G = D
         self.D = D
         self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
@@ -150,6 +150,7 @@ class StyleGAN2(pl.LightningModule):
                          do_main: bool, do_reg: bool) -> torch.Tensor:
         real_img_tmp = real_img
         real_logits = self._disc_run(real_img_tmp, real_c)
+
         # training_stats.report('Loss/scores/real', real_logits)
         # training_stats.report('Loss/signs/real', real_logits.sign())
         loss_Dreal = 0
@@ -186,9 +187,9 @@ class StyleGAN2(pl.LightningModule):
     def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         do_reg = do_reg and self.r1_gamma != 0
-        loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=True, do_reg=False)
-        if do_main:
-           loss += self._disc_main_loss(gen_z, gen_c, gain)
+        loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=do_main, do_reg=do_reg)
+        # if do_main:
+        #    loss += self._disc_main_loss(gen_z, gen_c, gain)
         return loss
 
     def _style_mixing(self, z: torch.Tensor, c: torch.Tensor, ws: torch.Tensor) -> torch.Tensor:
@@ -203,7 +204,7 @@ class StyleGAN2(pl.LightningModule):
         opts = []
 
         for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self._gen_loss),
+                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self._disc_loss),
                                                   ('D', self.D, self._D_opt_kwargs, self.D_reg_interval, self._disc_loss)
         ]):
             if reg_interval is None:
