@@ -18,7 +18,7 @@ class StyleGAN2(pl.LightningModule):
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
         self.G = G
-        self.D = G
+        self.D = D
         self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
@@ -208,7 +208,7 @@ class StyleGAN2(pl.LightningModule):
 
         for i, (name, module, opt_kwargs,
                 reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._gen_loss),
-                                                  ('D', self.D, self._D_opt_kwargs, None, self._gen_loss)
+                                                  ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
         ]):
             if reg_interval is None:
                 opt = dnnlib.util.construct_class_by_name(params=module.parameters(),
