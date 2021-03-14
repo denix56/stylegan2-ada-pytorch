@@ -341,7 +341,7 @@ class SynthesisBlock(torch.nn.Module):
         is_last,                            # Is this the last block?
         architecture        = 'skip',       # Architecture: 'orig', 'skip', 'resnet'.
         resample_filter     = [1,3,3,1],    # Low-pass filter to apply when resampling activations.
-        force_rf_buffer=False,              # Force creation of resample filter buffer. if in_channels != 0, then img
+        force_rf_buffer     = False,        # Force creation of resample filter buffer. if in_channels != 0, then img
                                             # is required in forward pass
         conv_clamp          = None,         # Clamp the output of convolution layers to +-X, None = disable clamping.
         use_fp16            = False,        # Use FP16 for this block?
@@ -432,7 +432,10 @@ class SynthesisBlock(torch.nn.Module):
 
         assert x.dtype == dtype
         assert img is None or img.dtype == torch.float32
-        return x, img
+        if self.is_last:
+            return None, img
+        else:
+            return x, img
 
 #----------------------------------------------------------------------------
 
