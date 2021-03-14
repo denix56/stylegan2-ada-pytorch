@@ -574,6 +574,7 @@ class DiscriminatorBlock(torch.nn.Module):
                 layer_idx = self.first_layer_idx + self.num_layers
                 trainable = (layer_idx >= freeze_layers)
                 self.num_layers += 1
+                print(trainable)
                 yield trainable
         trainable_iter = trainable_gen()
 
