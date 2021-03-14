@@ -272,7 +272,7 @@ class StyleGAN2(pl.LightningModule):
         #
         # self.datamodule.setup_noise_params(len(self.phases), 128)
 
-        return opts
+        return opts, []
 
 
 
