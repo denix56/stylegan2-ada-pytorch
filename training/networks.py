@@ -587,6 +587,7 @@ class DiscriminatorBlock(torch.nn.Module):
             #     trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
             self.fromrgb = torch.nn.Conv2d(img_channels, tmp_channels, kernel_size=1)
             self.fromrgb = torch.nn.Identity()
+            self.param = torch.nn.Parameter(torch.zeros([]))
 
             # self.conv0 = Conv2dLayer(tmp_channels, tmp_channels, kernel_size=3, activation=activation,
         #     trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
@@ -617,6 +618,7 @@ class DiscriminatorBlock(torch.nn.Module):
             img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
             x = x + y if x is not None else y
+            x *= self.param
             #img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         # Main layers.
         # if self.architecture == 'resnet':
