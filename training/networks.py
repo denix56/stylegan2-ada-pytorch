@@ -565,9 +565,9 @@ class DiscriminatorBlock(torch.nn.Module):
         self.conv1 = Conv2dLayer(tmp_channels, out_channels, kernel_size=3, activation=activation, down=2,
             trainable=next(trainable_iter), resample_filter=resample_filter, conv_clamp=conv_clamp, channels_last=self.channels_last)
 
-        # if architecture == 'resnet':
-        #     self.skip = Conv2dLayer(tmp_channels, out_channels, kernel_size=1, bias=False, down=2,
-        #         trainable=next(trainable_iter), resample_filter=resample_filter, channels_last=self.channels_last)
+        if architecture == 'resnet':
+            self.skip = Conv2dLayer(tmp_channels, out_channels, kernel_size=1, bias=False, down=2,
+                trainable=next(trainable_iter), resample_filter=resample_filter, channels_last=self.channels_last)
 
     def use_img(self):
         return self.in_channels == 0 or self.architecture == 'skip'
@@ -590,20 +590,20 @@ class DiscriminatorBlock(torch.nn.Module):
             img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
 
         # Main layers.
-        # if self.architecture == 'resnet':
-        #     y = self.skip(x, gain=np.sqrt(0.5))
-        #     x = self.conv0(x)
-        #     x = self.conv1(x, gain=np.sqrt(0.5))
-        #     x = y.add_(x)
-        # else:
-        x = self.conv0(x)
-        x = self.conv1(x)
+        if self.architecture == 'resnet':
+            y = self.skip(x, gain=np.sqrt(0.5))
+            x = self.conv0(x)
+            x = self.conv1(x, gain=np.sqrt(0.5))
+            x = y.add_(x)
+        else:
+            x = self.conv0(x)
+            x = self.conv1(x)
 
-       # assert x.dtype == dtype
-        # if return_img:
-        #     return x, img
-        # else:
-        return x
+        assert x.dtype == dtype
+        if return_img:
+            return x, img
+        else:
+            return x
 
 #----------------------------------------------------------------------------
 
