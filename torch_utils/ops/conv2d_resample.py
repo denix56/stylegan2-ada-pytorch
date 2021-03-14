@@ -61,7 +61,7 @@ def _conv2d_wrapper(x, w, stride=1, padding=0, groups=1, transpose=False, flip_w
 
 #----------------------------------------------------------------------------
 
-#@misc.profiled_function
+@misc.profiled_function
 def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight=True, flip_filter=False):
     r"""2D convolution with optional up/downsampling.
 
@@ -148,8 +148,6 @@ def conv2d_resample(x, w, f=None, up=1, down=1, padding=0, groups=1, flip_weight
         return x
 
     # Fast path: no up/downsampling, padding supported by the underlying implementation => use plain conv2d.
-    return F.conv2d(input=x, weight=w, bias=None, padding=[py0, px0])
-
     if up == 1 and down == 1:
         if px0 == px1 and py0 == py1 and px0 >= 0 and py0 >= 0:
             return _conv2d_wrapper(x=x, w=w, padding=[py0,px0], groups=groups, flip_weight=flip_weight)
