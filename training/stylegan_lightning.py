@@ -28,31 +28,31 @@ class StyleGAN2(pl.LightningModule):
         super().__init__()
         self.G = TestD()
         self.D = TestD()
-        self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
-        self._G_opt_kwargs = G_opt_kwargs
-        self._D_opt_kwargs = D_opt_kwargs
-        self.augment_pipe = None
-
-        self.datamodule = datamodule
-        self.batch_size = batch_size
-
-        self.G_reg_interval = G_reg_interval
-        self.D_reg_interval = D_reg_interval
-        self.phases = []
-
-        self.style_mixing_prob = style_mixing_prob
-        self.r1_gamma = r1_gamma
-        self.pl_batch_shrink = pl_batch_shrink
-        self.pl_decay = pl_decay
-        self.pl_weight = pl_weight
-       # self.pl_mean = torch.zeros([])
-
-        self.ema_kimg = ema_kimg
-        self.ema_rampup = ema_rampup
-        self.cur_nimg = 0
-        if isinstance(metrics, StyleGANMetric):
-            metrics = [metrics]
-        assert all([isinstance(metric, StyleGANMetric) for metric in metrics])
+       #  self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
+       #  self._G_opt_kwargs = G_opt_kwargs
+       #  self._D_opt_kwargs = D_opt_kwargs
+       #  self.augment_pipe = None
+       #
+       #  self.datamodule = datamodule
+       #  self.batch_size = batch_size
+       #
+       #  self.G_reg_interval = G_reg_interval
+       #  self.D_reg_interval = D_reg_interval
+       #  self.phases = []
+       #
+       #  self.style_mixing_prob = style_mixing_prob
+       #  self.r1_gamma = r1_gamma
+       #  self.pl_batch_shrink = pl_batch_shrink
+       #  self.pl_decay = pl_decay
+       #  self.pl_weight = pl_weight
+       # # self.pl_mean = torch.zeros([])
+       #
+       #  self.ema_kimg = ema_kimg
+       #  self.ema_rampup = ema_rampup
+       #  self.cur_nimg = 0
+       #  if isinstance(metrics, StyleGANMetric):
+       #      metrics = [metrics]
+       #  assert all([isinstance(metric, StyleGANMetric) for metric in metrics])
         #self.metrics = nn.ModuleList(metrics)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
