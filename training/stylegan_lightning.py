@@ -36,7 +36,7 @@ class StyleGAN2(pl.LightningModule):
         self.pl_batch_shrink = pl_batch_shrink
         self.pl_decay = pl_decay
         self.pl_weight = pl_weight
-        self.pl_mean = torch.zeros([])
+        #self.pl_mean = torch.zeros([])
 
         self.ema_kimg = ema_kimg
         self.ema_rampup = ema_rampup
@@ -44,7 +44,7 @@ class StyleGAN2(pl.LightningModule):
         if isinstance(metrics, StyleGANMetric):
             metrics = [metrics]
         assert all([isinstance(metric, StyleGANMetric) for metric in metrics])
-        self.metrics = nn.ModuleList(metrics)
+        #self.metrics = nn.ModuleList(metrics)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, labels, all_gen_z, all_gen_c = batch
@@ -175,6 +175,7 @@ class StyleGAN2(pl.LightningModule):
                   gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         loss = None
         do_reg = do_reg and self.pl_weight != 0
+        do_reg = False
         if do_main:
             loss = self._gen_main_loss(gen_z, gen_c, gain)
             if do_reg:
