@@ -152,7 +152,6 @@ class StyleGAN2(pl.LightningModule):
         real_logits = self._disc_run(real_img_tmp, real_c)
         # training_stats.report('Loss/scores/real', real_logits)
         # training_stats.report('Loss/signs/real', real_logits.sign())
-        return real_logits.mean()
         loss_Dreal = 0
         if do_main:
             loss_Dreal = F.softplus(-real_logits)  # -log(sigmoid(real_logits))
