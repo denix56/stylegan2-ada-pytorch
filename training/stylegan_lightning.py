@@ -22,7 +22,7 @@ class StyleGAN2(pl.LightningModule):
         self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
-        self.augment_pipe = None
+        self.augment_pipe = augment_pipe
 
         self.datamodule = datamodule
         self.batch_size = batch_size
@@ -116,8 +116,8 @@ class StyleGAN2(pl.LightningModule):
         return img, ws
 
     def _disc_run(self, img: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
-        # if self.augment_pipe is not None:
-        #     img = self.augment_pipe(img)
+        if self.augment_pipe is not None:
+            img = self.augment_pipe(img)
         logits = self.D(img, c)
         return logits
 
