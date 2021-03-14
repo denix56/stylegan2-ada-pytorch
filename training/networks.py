@@ -360,10 +360,10 @@ class SynthesisBlock(torch.nn.Module):
         self.channels_last = (use_fp16 and fp16_channels_last)
         self.force_rf_buffer = force_rf_buffer
 
-        #if in_channels == 0 or force_rf_buffer:
-        self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
-        # else:
-        #     self.resample_filter = None
+        if in_channels > 0 or force_rf_buffer:
+            self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+        else:
+            self.resample_filter = None
 
         self.num_conv = 0
         self.num_torgb = 0
@@ -390,10 +390,9 @@ class SynthesisBlock(torch.nn.Module):
                 resample_filter=resample_filter, channels_last=self.channels_last)
 
     def forward(self, x, img, ws, force_fp32=False, fused_modconv=None, return_x=True, **layer_kwargs):
-        rf_i = 0
-
         if self.force_rf_buffer:
-            assert self.in_channels == 0 or img is not None
+            assert self.in_channels > 0 or img is not None
+
         misc.assert_shape(ws, [None, self.num_conv + self.num_torgb, self.w_dim])
         w_iter = iter(ws.unbind(dim=1))
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
@@ -418,23 +417,19 @@ class SynthesisBlock(torch.nn.Module):
             x = self.conv0(x, next(w_iter), fused_modconv=fused_modconv, **layer_kwargs)
             x = self.conv1(x, next(w_iter), fused_modconv=fused_modconv, gain=np.sqrt(0.5), **layer_kwargs)
             x = y.add_(x)
-            rf_i += 2
         else:
             x = self.conv0(x, next(w_iter), fused_modconv=fused_modconv, **layer_kwargs)
             x = self.conv1(x, next(w_iter), fused_modconv=fused_modconv, **layer_kwargs)
-            rf_i += 2
 
         # ToRGB.
         if img is not None:
             misc.assert_shape(img, [None, self.img_channels, self.resolution // 2, self.resolution // 2])
             img = upfirdn2d.upsample2d(img, self.resample_filter)
-            rf_i += 1
         if self.is_last or self.architecture == 'skip':
             y = self.torgb(x, next(w_iter), fused_modconv=fused_modconv)
             y = y.to(dtype=torch.float32, memory_format=torch.contiguous_format)
             img = img.add_(y) if img is not None else y
 
-        print(rf_i)
         assert x.dtype == dtype
         assert img is None or img.dtype == torch.float32
         return x, img
