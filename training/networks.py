@@ -459,8 +459,8 @@ class SynthesisNetwork(torch.nn.Module):
 
         self.num_ws = 0
         for i, res in enumerate(self.block_resolutions):
-            if i > 1:
-                break
+            # if i > 1:
+            #     break
             in_channels = channels_dict[res // 2] if res > 4 else 0
             out_channels = channels_dict[res]
             use_fp16 = (res >= fp16_resolution)
@@ -480,16 +480,16 @@ class SynthesisNetwork(torch.nn.Module):
             w_idx = 0
             print(ws.shape)
             for i, res in enumerate(self.block_resolutions):
-                if i > 1:
-                    break
+                # if i > 1:
+                #     break
                 block = getattr(self, f'b{res}')
                 block_ws.append(ws.narrow(1, w_idx, block.num_conv + block.num_torgb))
                 w_idx += block.num_conv
 
         x = img = None
         for i, res, cur_ws in enumerate(zip(self.block_resolutions, block_ws)):
-            if i > 1:
-                break
+            # if i > 1:
+            #     break
             block = getattr(self, f'b{res}')
             x, img = block(x, img, cur_ws, **block_kwargs)
         return img
