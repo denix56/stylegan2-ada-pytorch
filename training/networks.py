@@ -161,7 +161,7 @@ class Conv2dLayer(torch.nn.Module):
                 self.bias = None
 
     def forward(self, x, gain=1):
-        print(x.requires_grad)
+        print(x.requires_grad, self.weight.requires_grad)
         w = (self.weight * self.weight_gain).to(dtype=x.dtype)
         b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
         flip_weight = (self.up == 1) # slightly faster
