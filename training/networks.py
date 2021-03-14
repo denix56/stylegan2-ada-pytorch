@@ -458,7 +458,10 @@ class SynthesisNetwork(torch.nn.Module):
         fp16_resolution = max(2 ** (self.img_resolution_log2 + 1 - num_fp16_res), 8)
 
         self.num_ws = 0
+        i = 0
         for res in self.block_resolutions:
+            if i > 1:
+                break
             in_channels = channels_dict[res // 2] if res > 4 else 0
             out_channels = channels_dict[res]
             use_fp16 = (res >= fp16_resolution)
@@ -469,6 +472,7 @@ class SynthesisNetwork(torch.nn.Module):
             if is_last:
                 self.num_ws += block.num_torgb
             setattr(self, f'b{res}', block)
+            i += 1
 
     def forward(self, ws, **block_kwargs):
         block_ws = []
@@ -476,13 +480,17 @@ class SynthesisNetwork(torch.nn.Module):
             misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
             ws = ws.to(torch.float32)
             w_idx = 0
-            for res in self.block_resolutions:
+            for i, res in enumerate(self.block_resolutions):
+                if i > 1:
+                    break
                 block = getattr(self, f'b{res}')
                 block_ws.append(ws.narrow(1, w_idx, block.num_conv + block.num_torgb))
                 w_idx += block.num_conv
 
         x = img = None
-        for res, cur_ws in zip(self.block_resolutions, block_ws):
+        for i, res, cur_ws in enumerate(zip(self.block_resolutions, block_ws)):
+            if i > 1:
+                break
             block = getattr(self, f'b{res}')
             x, img = block(x, img, cur_ws, **block_kwargs)
         return img
