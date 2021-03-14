@@ -585,7 +585,7 @@ class DiscriminatorBlock(torch.nn.Module):
         if in_channels == 0 or architecture == 'skip':
             # self.fromrgb = Conv2dLayer(img_channels, tmp_channels, kernel_size=1, activation=activation,
             #     trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
-            self.fromrgb = torch.nn.Conv2d(img_channels, tmp_channels, kernel_size=1)
+            #self.fromrgb = torch.nn.Conv2d(img_channels, tmp_channels, kernel_size=1)
             self.fromrgb = torch.nn.Identity()
             self.param = torch.nn.Parameter(torch.zeros([]))
 
