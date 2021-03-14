@@ -207,7 +207,7 @@ class StyleGAN2(pl.LightningModule):
         opts = []
 
         for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._gen_loss),
+                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._disc_loss),
                                                   ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
         ]):
             if reg_interval is None:
@@ -232,7 +232,7 @@ class StyleGAN2(pl.LightningModule):
                 self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
                 opts.append(opt)
 
-        self.datamodule.setup_noise_params(len(self.phases), self.G.z_dim)
+        self.datamodule.setup_noise_params(len(self.phases), 128)
 
         return opts
 
