@@ -582,14 +582,13 @@ class DiscriminatorBlock(torch.nn.Module):
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
         memory_format = torch.channels_last if self.channels_last and not force_fp32 else torch.contiguous_format
 
-        Input.
+        # Input.
         if x is not None:
              misc.assert_shape(x, [None, self.in_channels, self.resolution, self.resolution])
              x = x.to(dtype=dtype, memory_format=memory_format)
 
         # FromRGB.
         if self.use_img():
-            print(self.in_channels, self.architecture)
             misc.assert_shape(img, [None, self.img_channels, self.resolution, self.resolution])
             img = img.to(dtype=dtype, memory_format=memory_format)
             y = self.fromrgb(img)
