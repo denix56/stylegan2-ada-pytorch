@@ -137,7 +137,6 @@ class Conv2dLayer(torch.nn.Module):
         trainable       = True,         # Update the weights of this layer during training?
     ):
         super().__init__()
-        bias = False
         self.activation = activation
         self.up = up
         self.down = down
@@ -165,14 +164,14 @@ class Conv2dLayer(torch.nn.Module):
 
     def forward(self, x, gain=1):
         w = self.weight * self.weight_gain
-        #b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
+        b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
         flip_weight = (self.up == 1) # slightly faster
         x = conv2d_resample.conv2d_resample(x=x, w=w.to(dtype=x.dtype), f=self.resample_filter,
                                             up=self.up, down=self.down, padding=self.padding, flip_weight=flip_weight)
 
-        # act_gain = self.act_gain * gain
-        # act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
-        # x = bias_act.bias_act(x, b, act=self.activation, gain=act_gain, clamp=act_clamp)
+        act_gain = self.act_gain * gain
+        act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
+        x = bias_act.bias_act(x, b, act=self.activation, gain=act_gain, clamp=act_clamp)
         return x
 
 #----------------------------------------------------------------------------
@@ -729,9 +728,7 @@ class Discriminator(torch.nn.Module):
 
         common_kwargs = dict(img_channels=img_channels, architecture=architecture, conv_clamp=conv_clamp)
         cur_layer_idx = 0
-        for i, res in enumerate(self.block_resolutions):
-            if i > 1:
-                break
+        for res in self.block_resolutions:
             in_channels = channels_dict[res] if res < img_resolution else 0
             tmp_channels = channels_dict[res]
             out_channels = channels_dict[res // 2]
