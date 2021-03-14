@@ -18,7 +18,7 @@ class StyleGAN2(pl.LightningModule):
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, metrics=[]):
         super().__init__()
         self.G = G
-        self.D = G
+        self.D = D
         self.G_ema = None#copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
@@ -188,9 +188,9 @@ class StyleGAN2(pl.LightningModule):
     def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         do_reg = do_reg and self.r1_gamma != 0
-        loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=True, do_reg=False)
-        # if do_main:
-        #    loss += self._disc_main_loss(gen_z, gen_c, gain)
+        loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=do_main, do_reg=do_reg)
+        if do_main:
+           loss += self._disc_main_loss(gen_z, gen_c, gain)
         return loss
 
     def _style_mixing(self, z: torch.Tensor, c: torch.Tensor, ws: torch.Tensor) -> torch.Tensor:
@@ -206,7 +206,7 @@ class StyleGAN2(pl.LightningModule):
 
         for i, (name, module, opt_kwargs,
                 reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, None, self._gen_loss),
-                                                  ('D', self.D, self._D_opt_kwargs, None, self._gen_loss)
+                                                  ('D', self.D, self._D_opt_kwargs, None, self._disc_loss)
         ]):
             if reg_interval is None:
                 opt = dnnlib.util.construct_class_by_name(params=module.parameters(),
