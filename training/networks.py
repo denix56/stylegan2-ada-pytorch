@@ -579,25 +579,22 @@ class DiscriminatorBlock(torch.nn.Module):
                 yield trainable
         trainable_iter = trainable_gen()
 
-        # if architecture == 'skip':
-        #     self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
+        if architecture == 'skip':
+            self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
 
         if in_channels == 0 or architecture == 'skip':
-            # self.fromrgb = Conv2dLayer(img_channels, tmp_channels, kernel_size=1, activation=activation,
-            #     trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
-            #self.fromrgb = torch.nn.Conv2d(img_channels, tmp_channels, kernel_size=1)
-            self.fromrgb = torch.nn.Identity()
-            self.param = torch.nn.Parameter(torch.zeros([]))
+            self.fromrgb = Conv2dLayer(img_channels, tmp_channels, kernel_size=1, activation=activation,
+                trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
 
-            # self.conv0 = Conv2dLayer(tmp_channels, tmp_channels, kernel_size=3, activation=activation,
-        #     trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
-        #
-        # self.conv1 = Conv2dLayer(tmp_channels, out_channels, kernel_size=3, activation=activation, down=2,
-        #     trainable=next(trainable_iter), resample_filter=resample_filter, conv_clamp=conv_clamp, channels_last=self.channels_last)
-        #
-        # if architecture == 'resnet':
-        #     self.skip = Conv2dLayer(tmp_channels, out_channels, kernel_size=1, bias=False, down=2,
-        #         trainable=next(trainable_iter), resample_filter=resample_filter, channels_last=self.channels_last)
+        self.conv0 = Conv2dLayer(tmp_channels, tmp_channels, kernel_size=3, activation=activation,
+        trainable=next(trainable_iter), conv_clamp=conv_clamp, channels_last=self.channels_last)
+
+        self.conv1 = Conv2dLayer(tmp_channels, out_channels, kernel_size=3, activation=activation, down=2,
+            trainable=next(trainable_iter), resample_filter=resample_filter, conv_clamp=conv_clamp, channels_last=self.channels_last)
+
+        if architecture == 'resnet':
+            self.skip = Conv2dLayer(tmp_channels, out_channels, kernel_size=1, bias=False, down=2,
+                trainable=next(trainable_iter), resample_filter=resample_filter, channels_last=self.channels_last)
 
     def use_img(self):
         return self.in_channels == 0 or self.architecture == 'skip'
@@ -610,28 +607,27 @@ class DiscriminatorBlock(torch.nn.Module):
         # Input.
         if x is not None:
              misc.assert_shape(x, [None, self.in_channels, self.resolution, self.resolution])
-             #x = x.to(dtype=dtype, memory_format=memory_format)
+             x = x.to(dtype=dtype, memory_format=memory_format)
 
         # FromRGB.
-        #if self.use_img():
-        misc.assert_shape(img, [None, self.img_channels, self.resolution, self.resolution])
-        #img = img.to(dtype=dtype, memory_format=memory_format)
-        y = self.fromrgb(img)
-        x = x + y if x is not None else y
-        x = x * self.param
-            #img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
+        if self.use_img():
+            misc.assert_shape(img, [None, self.img_channels, self.resolution, self.resolution])
+            img = img.to(dtype=dtype, memory_format=memory_format)
+            y = self.fromrgb(img)
+            x = x + y if x is not None else y
+            img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         # Main layers.
-        # if self.architecture == 'resnet':
-        #     y = self.skip(x, gain=np.sqrt(0.5))
-        #     x = self.conv0(x)
-        #     x = self.conv1(x, gain=np.sqrt(0.5))
-        #     x = y.add_(x)
-        # else:
-        #     x = self.conv0(x)
-        #     x = self.conv1(x)
+        if self.architecture == 'resnet':
+            y = self.skip(x, gain=np.sqrt(0.5))
+            x = self.conv0(x)
+            x = self.conv1(x, gain=np.sqrt(0.5))
+            x = y.add_(x)
+        else:
+            x = self.conv0(x)
+            x = self.conv1(x)
 
         assert x.dtype == dtype
-        return x
+        return x, img
 
 #----------------------------------------------------------------------------
 
@@ -763,31 +759,20 @@ class Discriminator(torch.nn.Module):
                 first_layer_idx=cur_layer_idx, use_fp16=use_fp16, **block_kwargs, **common_kwargs)
             setattr(self, f'b{res}', block)
             cur_layer_idx += block.num_layers
-            break
-        # if c_dim > 0:
-        #    self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
-        # self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
+        if c_dim > 0:
+           self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
+        self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
 
     def forward(self, img, c, **block_kwargs):
         x = None
         for res in self.block_resolutions:
             block = getattr(self, f'b{res}')
-            # if return_img:
-            #     if i < len(self.block_resolutions)-1:
-            #         next_block = getattr(self, f'b{self.block_resolutions[i+1]}')
-            #         return_img = next_block.use_img()
-            #     else:
-            #         return_img = self.b4.use_img()
-            # if return_img:
-            #     x, img = block(x, img, return_img=return_img, **block_kwargs)
-            # else:
-            x = block(x, img, **block_kwargs)
-            return x
+            x, img = block(x, img, **block_kwargs)
 
-        # cmap = None
-        # if self.c_dim > 0:
-        #     cmap = self.mapping(None, c)
-        # x = self.b4(x, img, cmap)
+        cmap = None
+        if self.c_dim > 0:
+            cmap = self.mapping(None, c)
+        x = self.b4(x, img, cmap)
         return x
 
 #----------------------------------------------------------------------------
