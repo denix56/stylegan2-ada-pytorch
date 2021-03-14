@@ -98,8 +98,8 @@ class StyleGAN2(pl.LightningModule):
 
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
-        if self.style_mixing_prob > 0:
-            ws = self._style_mixing(z, c, ws)
+        # if self.style_mixing_prob > 0:
+        #     ws = self._style_mixing(z, c, ws)
         img = self.G.synthesis(ws)
         return img, ws
 
@@ -188,7 +188,7 @@ class StyleGAN2(pl.LightningModule):
     def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         do_reg = do_reg and self.r1_gamma != 0
-        loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=do_main, do_reg=do_reg)
+        loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=True, do_reg=False)
         # if do_main:
         #    loss += self._disc_main_loss(gen_z, gen_c, gain)
         return loss
