@@ -110,7 +110,7 @@ class StyleGAN2(pl.LightningModule):
         return logits
 
     def _gen_main_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
-            gen_img = self._gen_run(gen_z, gen_c)
+            gen_img, _gen_ws = self._gen_run(gen_z, gen_c)
             gen_logits = self._disc_run(gen_img, gen_c)
             # training_stats.report('Loss/scores/fake', gen_logits)
             # training_stats.report('Loss/signs/fake', gen_logits.sign())

@@ -161,7 +161,6 @@ class Conv2dLayer(torch.nn.Module):
                 self.bias = None
 
     def forward(self, x, gain=1):
-        print(x.requires_grad, self.weight.requires_grad)
         w = (self.weight * self.weight_gain).to(dtype=x.dtype)
         b = self.bias.to(dtype=x.dtype) if self.bias is not None else None
         flip_weight = (self.up == 1) # slightly faster
@@ -171,7 +170,6 @@ class Conv2dLayer(torch.nn.Module):
         act_gain = self.act_gain * gain
         act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
         x = bias_act.bias_act(x, b, act=self.activation, gain=act_gain, clamp=act_clamp)
-        print(x.requires_grad, w.requires_grad)
         return x
 
 #----------------------------------------------------------------------------
@@ -286,7 +284,7 @@ class SynthesisLayer(torch.nn.Module):
         memory_format = torch.channels_last if channels_last else torch.contiguous_format
         self.weight = torch.nn.Parameter(torch.randn([out_channels, in_channels, kernel_size, kernel_size]).to(memory_format=memory_format))
         if use_noise:
-            #self.register_buffer('noise_const', torch.randn([resolution, resolution]))
+            self.register_buffer('noise_const', torch.randn([resolution, resolution]))
             self.noise_strength = torch.nn.Parameter(torch.zeros([]))
         self.bias = torch.nn.Parameter(torch.zeros([out_channels]))
 
@@ -295,7 +293,6 @@ class SynthesisLayer(torch.nn.Module):
         in_resolution = self.resolution // self.up
         misc.assert_shape(x, [None, self.weight.shape[1], in_resolution, in_resolution])
         styles = self.affine(w)
-        print(noise_mode)
         noise = None
         if self.use_noise and noise_mode == 'random':
             noise = torch.randn([x.shape[0], 1, self.resolution, self.resolution], device=x.device) * self.noise_strength
@@ -484,18 +481,13 @@ class SynthesisNetwork(torch.nn.Module):
             misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
             ws = ws.to(torch.float32)
             w_idx = 0
-            print(ws.shape)
-            for i, res in enumerate(self.block_resolutions):
-                # if i > 1:
-                #     break
+            for res in self.block_resolutions:
                 block = getattr(self, f'b{res}')
                 block_ws.append(ws.narrow(1, w_idx, block.num_conv + block.num_torgb))
                 w_idx += block.num_conv
 
         x = img = None
-        for i, (res, cur_ws) in enumerate(zip(self.block_resolutions, block_ws)):
-            # if i > 1:
-            #     break
+        for res, cur_ws in zip(self.block_resolutions, block_ws):
             block = getattr(self, f'b{res}')
             x, img = block(x, img, cur_ws, **block_kwargs)
         return img
