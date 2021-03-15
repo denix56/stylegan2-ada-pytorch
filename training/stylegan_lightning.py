@@ -53,18 +53,18 @@ class StyleGAN2(pl.LightningModule):
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
         return loss
 
-    # def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
-    #     # Update G_ema.
-    #     ema_nimg = self.ema_kimg * 1000
-    #     if self.ema_rampup is not None:
-    #         ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
-    #     ema_beta = 0.5 ** (self.batch_size / max(ema_nimg, 1e-8))
-    #     for p_ema, p in zip(self.G_ema.parameters(), self.G.parameters()):
-    #         p_ema.copy_(p.lerp(p_ema, ema_beta))
-    #     for b_ema, b in zip(self.G_ema.buffers(), self.G.buffers()):
-    #         b_ema.copy_(b)
-    #
-    #     self.cur_nimg += self.batch_size
+    def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
+        # Update G_ema.
+        ema_nimg = self.ema_kimg * 1000
+        if self.ema_rampup is not None:
+            ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
+        ema_beta = 0.5 ** (self.batch_size / max(ema_nimg, 1e-8))
+        for p_ema, p in zip(self.G_ema.parameters(), self.G.parameters()):
+            p_ema.copy_(p.lerp(p_ema, ema_beta))
+        for b_ema, b in zip(self.G_ema.buffers(), self.G.buffers()):
+            b_ema.copy_(b)
+
+        self.cur_nimg += self.batch_size
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
                        on_tpu, using_native_amp, using_lbfgs):
@@ -75,26 +75,26 @@ class StyleGAN2(pl.LightningModule):
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
         optimizer.step(closure=optimizer_closure)
 
-    # def on_validation_start(self):
-    #     if self.metrics:
-    #         opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.datamodule.name,
-    #                                device=self.device, G=self.G_ema)
-    #         for metric in self.metrics:
-    #             metric.prepare(opts)
-    #
-    # def validation_step(self, batch, batch_idx):
-    #     if self.metrics:
-    #         batch_size = batch.size(0)
-    #         z = torch.randn((batch_size, self.G.z_dim), device=self.device)
-    #         indices = np.random.randint(self.training_set.get_len(), size=batch_size)
-    #         c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)
-    #         for metric in self.metrics:
-    #             metric(batch, z, c)
-    #
-    # def on_validation_end(self):
-    #     if self.metrics:
-    #         for metric in self.metrics:
-    #             metric.reset()
+    def on_validation_start(self):
+        if self.metrics:
+            opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.datamodule.name,
+                                   device=self.device, G=self.G_ema)
+            for metric in self.metrics:
+                metric.prepare(opts)
+
+    def validation_step(self, batch, batch_idx):
+        if self.metrics:
+            batch_size = batch.size(0)
+            z = torch.randn((batch_size, self.G.z_dim), device=self.device)
+            indices = np.random.randint(self.training_set.get_len(), size=batch_size)
+            c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)
+            for metric in self.metrics:
+                metric(batch, z, c)
+
+    def on_validation_end(self):
+        if self.metrics:
+            for metric in self.metrics:
+                metric.reset()
 
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
