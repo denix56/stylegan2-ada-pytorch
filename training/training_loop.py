@@ -6,18 +6,18 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-import os
+#import os
 import time
-import copy
-import json
-import pickle
-import psutil
+#import copy
+#import json
+#import pickle
+#import psutil
 import PIL.Image
 import numpy as np
 import torch
 import dnnlib
-from torch_utils import misc
-from torch_utils import training_stats
+#from torch_utils import misc
+#from torch_utils import training_stats
 from torch_utils.ops import conv2d_gradfix
 from torch_utils.ops import grid_sample_gradfix
 import pytorch_lightning as pl
@@ -27,8 +27,8 @@ from .metrics_lightning import FID
 from .stylegan_lightning import StyleGAN2
 from pytorch_lightning.callbacks import GPUStatsMonitor
 
-import legacy
-from metrics import metric_main
+#import legacy
+#from metrics import metric_main
 
 from pytorch_lightning.plugins.training_type.ddp import DDPPlugin
 from pytorch_lightning.overrides import LightningDistributedModule
