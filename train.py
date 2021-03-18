@@ -109,12 +109,15 @@ def setup_training_loop_kwargs(
     args.training_set_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False)
     args.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, num_workers=3, prefetch_factor=2)
     try:
+        print(2)
         training_set = dnnlib.util.construct_class_by_name(**args.training_set_kwargs) # subclass of training.dataset.Dataset
+        print(2)
         args.training_set_kwargs.resolution = training_set.resolution # be explicit about resolution
         args.training_set_kwargs.use_labels = training_set.has_labels # be explicit about labels
         args.training_set_kwargs.max_size = training_set.get_len() # be explicit about dataset size
         desc = training_set.name
         del training_set # conserve memory
+        print(3)
     except IOError as err:
         raise UserError(f'--data: {err}')
 
