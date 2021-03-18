@@ -14,6 +14,7 @@ import json
 import torch
 import dnnlib
 from torchvision.transforms.functional import to_tensor
+from torch.utils.data import IterableDataset
 
 try:
     import pyspng
@@ -23,7 +24,7 @@ except ImportError:
 #----------------------------------------------------------------------------
 
 
-class Dataset(torch.utils.data.IterableDataset):
+class Dataset(IterableDataset):
     def __init__(self,
         name,                   # Name of the dataset.
         raw_shape,              # Shape of the raw image data (NCHW).
