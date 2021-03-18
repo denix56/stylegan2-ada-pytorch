@@ -225,7 +225,7 @@ def setup_training_loop_kwargs(
     # ---------------------------------------------------
     # Discriminator augmentation: aug, p, target, augpipe
     # ---------------------------------------------------
-
+    print(11)
     if aug is None:
         aug = 'ada'
     else:
@@ -328,7 +328,7 @@ def setup_training_loop_kwargs(
     # -------------------------------------------------
     # Performance options: fp32, nhwc, nobench, workers
     # -------------------------------------------------
-    print(11)
+
     if fp32 is None:
         fp32 = False
     assert isinstance(fp32, bool)
