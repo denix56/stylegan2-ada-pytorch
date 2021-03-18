@@ -73,7 +73,6 @@ def setup_training_loop_kwargs(
     # ------------------------------------------
     # General options: gpus, snap, metrics, seed
     # ------------------------------------------
-
     if gpus is None:
         gpus = 1
     assert isinstance(gpus, int)
@@ -104,7 +103,7 @@ def setup_training_loop_kwargs(
     # -----------------------------------
     # Dataset: data, cond, subset, mirror
     # -----------------------------------
-
+    print(11)
     assert data is not None
     assert isinstance(data, str)
     args.training_set_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False)
