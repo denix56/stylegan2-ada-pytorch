@@ -103,7 +103,7 @@ def setup_training_loop_kwargs(
     # -----------------------------------
     # Dataset: data, cond, subset, mirror
     # -----------------------------------
-    print(11)
+
     assert data is not None
     assert isinstance(data, str)
     args.training_set_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False)
@@ -328,7 +328,7 @@ def setup_training_loop_kwargs(
     # -------------------------------------------------
     # Performance options: fp32, nhwc, nobench, workers
     # -------------------------------------------------
-
+    print(11)
     if fp32 is None:
         fp32 = False
     assert isinstance(fp32, bool)
