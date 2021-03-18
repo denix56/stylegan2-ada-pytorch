@@ -7,15 +7,13 @@
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
 import os
-import time
 import hashlib
 import pickle
-import copy
 import uuid
-import numpy as np
 import torch
 import dnnlib
 import pytorch_lightning as pl
+import torchmetrics
 
 
 #----------------------------------------------------------------------------
@@ -52,7 +50,7 @@ def get_feature_detector(url, trainer: pl.Trainer, device, verbose=False):
 #----------------------------------------------------------------------------
 
 
-class AllItemsMetric(pl.metrics.Metric):
+class AllItemsMetric(torchmetrics.Metric):
     def __init__(self):
         super(AllItemsMetric, self).__init__(dist_sync_on_step=True)
         self.add_state('all_features', default=[], dist_reduce_fx=None)
@@ -67,7 +65,7 @@ class AllItemsMetric(pl.metrics.Metric):
         return self.all_features_sync
 
 
-class NumItemsMetric(pl.metrics.Metric):
+class NumItemsMetric(torchmetrics.Metric):
     def __init__(self):
         super(NumItemsMetric, self).__init__(dist_sync_on_step=True)
 
@@ -80,7 +78,7 @@ class NumItemsMetric(pl.metrics.Metric):
         return self.num_items
 
 
-class FeatureStats(pl.metrics.Metric):
+class FeatureStats(torchmetrics.Metric):
     def __init__(self, capture_all=False, capture_mean_cov=False, max_items=None, num_features=None, **kwargs):
         super(FeatureStats, self).__init__(compute_on_step=False)
         self.capture_all = capture_all
@@ -166,7 +164,7 @@ class FeatureStats(pl.metrics.Metric):
 #----------------------------------------------------------------------------
 
 
-class FeatStatsDataset(pl.metrics.Metric):
+class FeatStatsDataset(torchmetrics.Metric):
     def __init__(self, detector_url: str, detector_kwargs: dict = None, verbose=False):
         super(FeatStatsDataset, self).__init__(compute_on_step=False)
         self.detector_url = detector_url
@@ -247,7 +245,7 @@ class FeatStatsDataset(pl.metrics.Metric):
 
 #----------------------------------------------------------------------------
 
-class FeatStatsGenerator(pl.metrics.Metric):
+class FeatStatsGenerator(torchmetrics.Metric):
     def __init__(self, detector_url: str, detector_kwargs: dict = None, stats_kwargs=None, verbose=False):
         super(FeatStatsGenerator, self).__init__()
         self.detector_url = detector_url
@@ -361,3 +359,24 @@ class FeatStatsGenerator(pl.metrics.Metric):
 #         )
 #
 # #----------------------------------------------------------------------------
+
+
+class LogitSign(torchmetrics.Metric):
+    def __init__(self):
+        super(LogitSign, self).__init__(dist_sync_on_step=False, compute_on_step=False)
+        self.add_state('logit_signs_sum', torch.zeros([]), dist_reduce_fx='sum')
+        self.add_state('num', torch.zeros([], dtype=torch.int), dist_reduce_fx='sum')
+
+    def update(self, logits: torch.Tensor):
+        self.logit_signs_sum += logits.sign().sum()
+        self.num += torch.numel(logits)
+
+    def compute(self):
+        nom = self.logit_signs_sum
+        denom = self.num
+        self.reset()
+
+        if torch.is_nonzero(denom):
+            return (nom / denom).item()
+        return float('nan')
+

@@ -25,6 +25,7 @@ from pytorch_lightning.utilities.seed import seed_everything
 from .dataloader_lightning import StyleGANDataModule
 from .metrics_lightning import FID
 from .stylegan_lightning import StyleGAN2
+from pytorch_lightning.callbacks import GPUStatsMonitor
 
 import legacy
 from metrics import metric_main
@@ -204,14 +205,22 @@ def training_loop(
         #     ada_stats = training_stats.Collector(regex='Loss/signs/real')
 
     fid50k = FID(max_real=None, num_gen=50000)
+    ema_kimg /= num_gpus
+    ada_kimg /= num_gpus
+    kimg_per_tick /= num_gpus
+
+    gpu_stats = GPUStatsMonitor(intra_step_time=True)
 
     net = StyleGAN2(G=G, D=D, G_opt_kwargs=G_opt_kwargs, D_opt_kwargs=D_opt_kwargs, augment_pipe=augment_pipe,
-                    datamodule=training_set_pl, batch_size=batch_size, G_reg_interval=G_reg_interval, D_reg_interval=D_reg_interval,
-                    ema_kimg=ema_kimg, ema_rampup=ema_rampup, metrics=[fid50k], **loss_kwargs)
+                    datamodule=training_set_pl, G_reg_interval=G_reg_interval,
+                    D_reg_interval=D_reg_interval, ema_kimg=ema_kimg, ema_rampup=ema_rampup,
+                    ada_target=ada_target, ada_interval=ada_interval, ada_kimg=ada_kimg, metrics=[fid50k],
+                    kimg_per_tick=kimg_per_tick, **loss_kwargs)
 
     trainer = pl.Trainer(gpus=num_gpus, accelerator='ddp', weights_summary='full', fast_dev_run=10,
                          benchmark=cudnn_benchmark, max_steps=total_kimg//(batch_size)*1000,
-                         plugins=DDPPlugin(broadcast_buffers=False, find_unused_parameters=True))
+                         plugins=[DDPPlugin(broadcast_buffers=False, find_unused_parameters=True)],
+                         callbacks=[gpu_stats])
     trainer.fit(net, datamodule=training_set_pl)
 
     # # Distribute across GPUs.

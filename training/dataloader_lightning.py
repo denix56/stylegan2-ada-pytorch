@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import dnnlib
 import numpy as np
+from .dataset import worker_init_fn
 
 
 class StyleGANDataModule(pl.LightningDataModule):
@@ -10,7 +11,13 @@ class StyleGANDataModule(pl.LightningDataModule):
         super().__init__()
         self._batch_size_per_unit = batch_size_per_unit
         self._data_loader_kwargs = data_loader_kwargs
+
+        shuffle = training_set_kwargs.pop('shuffle', False)
+        window_size = training_set_kwargs.pop('window_size', 0.5)
+
         self.training_set = dnnlib.util.construct_class_by_name(**training_set_kwargs)
+        self.worker_init_fn = lambda id: worker_init_fn(id, shuffle, window_size)
+
         self.n_phases = None
         self.z_dim = None
 
@@ -39,15 +46,16 @@ class StyleGANDataModule(pl.LightningDataModule):
         return all_gen_z, all_gen_c
 
     def train_dataloader(self):
-        return DataLoader(dataset=self.training_set, batch_size=self._batch_size_per_unit, **self._data_loader_kwargs)
+        return DataLoader(dataset=self.training_set, batch_size=self._batch_size_per_unit, worker_init_fn=self.worker_init_fn,
+                          persistent_workers=True, **self._data_loader_kwargs)
 
     def val_dataloader(self):
-        return DataLoader(dataset=self.training_set, batch_size=self._batch_size_per_unit,
-                          **self._data_loader_kwargs)
+        return DataLoader(dataset=self.training_set, batch_size=self._batch_size_per_unit, worker_init_fn=self.worker_init_fn,
+                          persistent_workers=True, **self._data_loader_kwargs)
 
     def test_dataloader(self):
-        return DataLoader(dataset=self.training_set, batch_size=self._batch_size_per_unit,
-                          **self._data_loader_kwargs)
+        return DataLoader(dataset=self.training_set, batch_size=self._batch_size_per_unit, worker_init_fn=self.worker_init_fn,
+                          persistent_workers=True, **self._data_loader_kwargs)
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         batch[0] = batch[0].to(torch.float32) / 127.5 - 1

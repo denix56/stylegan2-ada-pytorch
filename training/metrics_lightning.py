@@ -1,18 +1,14 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import torch
-import pytorch_lightning as pl
+
 from . import metric_utils_lightning
-import dnnlib
-import hashlib
-import os
-import uuid
-import copy
 import scipy
 import numpy as np
+import torchmetrics
 
 
-class StyleGANMetric(pl.metrics.Metric, ABC):
+class StyleGANMetric(torchmetrics.Metric, ABC):
     def __init__(self, detector_url: str, detector_kwargs: dict = None,
                  max_real=None, num_gen=None,):
         super(StyleGANMetric, self).__init__(compute_on_step=False)
@@ -25,6 +21,11 @@ class StyleGANMetric(pl.metrics.Metric, ABC):
 
         self.gen_feats = metric_utils_lightning.FeatStatsGenerator(detector_url=detector_url,
                                                                    detector_kwargs=detector_kwargs)
+
+    @property
+    @abstractmethod
+    def name(self):
+        pass
 
     def prepare(self, opts):
         opts.update(num_items=self.max_real)
@@ -71,6 +72,9 @@ class FID(StyleGANMetric):
         s, _ = scipy.linalg.sqrtm(np.dot(sigma_gen, sigma_real), disp=False)  # pylint: disable=no-member
         fid = np.real(m + np.trace(sigma_gen + sigma_real - s * 2))
         return float(fid)
+
+    def name(self):
+        return 'FID'
 
 
 

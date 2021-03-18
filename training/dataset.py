@@ -31,16 +31,20 @@ class Dataset(torch.utils.data.IterableDataset):
         use_labels  = False,    # Enable conditioning labels? False = label dimension is zero.
         xflip       = False,    # Artificially double the size of the dataset via x-flips. Applied after max_size.
         random_seed = 0,        # Random seed to use when applying max_size.
-        shuffle     = False,
-        window_size = 0.5
     ):
         self._name = name
         self._raw_shape = list(raw_shape)
         self._use_labels = use_labels
         self._raw_labels = None
         self._label_shape = None
-        self.shuffle = shuffle
-        self.window_size = window_size
+
+        self.rnd = None
+        self.order = None
+        self.num_workers = None
+        self.rank = None
+        self.window = None
+        self._stop = False
+        self.idx = 0
 
         # Apply max_size.
         self._raw_idx = np.arange(self._raw_shape[0], dtype=np.int64)
@@ -67,6 +71,9 @@ class Dataset(torch.utils.data.IterableDataset):
                 assert np.all(self._raw_labels >= 0)
         return self._raw_labels
 
+    def stop(self):
+        self._stop = True
+
     def close(self): # to be overridden by subclass
         pass
 
@@ -89,31 +96,15 @@ class Dataset(torch.utils.data.IterableDataset):
         return self._raw_idx.size
 
     def __iter__(self):
-        end = self.get_len()
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is None:  # single-process data loading, return the full
-            rank = 0
-        else:  # in a worker process
-            # split workload
-            rank = worker_info.id
-
-        order = np.arange(self.get_len())
-        rnd = None
-        window = 0
-        if self.shuffle:
-            rnd = np.random.RandomState(worker_info.seed)
-            rnd.shuffle(order)
-            window = int(np.rint(order.size * self.window_size))
-
-        idx = 0
-        while True:
-            i = idx % order.size
-            if idx % worker_info.num_workers == rank:
-                yield self._get_data(order[i])
-            if window >= 2:
-                j = (i - rnd.randint(window)) % order.size
-                order[i], order[j] = order[j], order[i]
-            idx += 1
+        while not self._stop:
+            i = self.idx % self.order.size
+            if self.idx % self.num_workers == self.rank:
+                yield self._get_data(self.order[i])
+            if self.window >= 2:
+                j = (i - self.rnd.randint(self.window)) % self.order.size
+                self.order[i], self.order[j] = self.order[j], self.order[i]
+            self.idx += 1
+        self._stop = False
 
     def _get_data(self, idx):
         image = self._load_raw_image(self._raw_idx[idx])
@@ -270,3 +261,27 @@ class ImageFolderDataset(Dataset):
         return labels
 
 #----------------------------------------------------------------------------
+
+
+def worker_init_fn(worker_id, shuffle, window_size):
+    worker_info = torch.utils.data.get_worker_info()
+    dataset = worker_info.dataset
+    if worker_info is None:  # single-process data loading, return the full
+        rank = 0
+    else:  # in a worker process
+        # split workload
+        rank = worker_info.id
+
+    order = np.arange(dataset.get_len())
+    rnd = None
+    window = 0
+    if shuffle:
+        rnd = np.random.RandomState(worker_info.seed)
+        rnd.shuffle(order)
+        window = int(np.rint(order.size * window_size))
+
+    dataset.rnd = rnd
+    dataset.order = order
+    dataset.num_workers = worker_info.num_workers
+    dataset.rank = rank
+    dataset.window = window
