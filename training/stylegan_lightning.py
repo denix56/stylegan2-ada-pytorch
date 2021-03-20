@@ -77,8 +77,7 @@ class StyleGAN2(pl.LightningModule):
         self.start_time = time.time()
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
-        if self.current_epoch == self.start_epoch and batch_idx > 0 or self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
-            print('epoch interrupt', self.current_epoch, self.cur_nimg, self.tick_start_nimg)
+        if self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
             return -1
 
     def training_step(self, batch, batch_idx, optimizer_idx):
