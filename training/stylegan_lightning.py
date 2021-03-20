@@ -78,14 +78,14 @@ class StyleGAN2(pl.LightningModule):
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
         if self.current_epoch == self.start_epoch and batch_idx > 0 or self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
-            print(self.current_epoch, )
+            print('epoch interrupt', self.current_epoch, self.cur_nimg, self.tick_start_nimg)
             return -1
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        print(batch_idx)
         imgs, labels, all_gen_z, all_gen_c = batch
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
+        self.print(loss)
         return loss
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
@@ -119,6 +119,7 @@ class StyleGAN2(pl.LightningModule):
             logit_sign = self.logit_sign.compute()
             adjust = np.sign(logit_sign - self.ada_target) * (batch_size * self.ada_interval) / (self.ada_kimg * 1000)
             self.augment_pipe.p.copy_((self.augment_pipe.p + adjust).max(misc.constant(0, device=self.device)))
+        self.print('batch_end')
 
     def on_train_epoch_start(self):
         self.tick_start_nimg = self.cur_nimg
@@ -144,6 +145,7 @@ class StyleGAN2(pl.LightningModule):
 
         self.log_dict(mean_values)
         self.log_dict(sum_values, reduce_fx=torch.sum)
+        self.print('epoch end')
 
     def configure_optimizers(self):
         self.phases = []
