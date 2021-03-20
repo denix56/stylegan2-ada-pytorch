@@ -119,11 +119,13 @@ class StyleGAN2(pl.LightningModule):
             self.augment_pipe.p.copy_((self.augment_pipe.p + adjust).max(misc.constant(0, device=self.device)))
 
     def on_train_epoch_start(self):
+        self.tick_start_nimg = self.cur_nimg
         self.tick_start_time = time.time()
         if self.tick_end_time != 0:
             self.log('Timing/maintenance_sec', self.tick_start_time - self.tick_end_time)
 
     def on_train_epoch_end(self, outputs):
+        print(self.cur_nimg, self.global_step, self.tick_start_nimg)
         self.tick_end_time = time.time()
         mean_values = {
             'total_sec': self.tick_end_time - self.start_time,
