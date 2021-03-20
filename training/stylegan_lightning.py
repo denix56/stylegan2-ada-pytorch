@@ -75,7 +75,7 @@ class StyleGAN2(pl.LightningModule):
         self.start_time = time.time()
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
-        cur_nimg = self.global_step * batch.shape[0]
+        cur_nimg = self.global_step * batch[0].shape[0]
         if self.current_epoch == self.start_epoch and batch_idx > 0 or cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
             return -1
 
@@ -100,7 +100,7 @@ class StyleGAN2(pl.LightningModule):
     def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         # Update G_ema.
         ema_nimg = self.ema_kimg * 1000
-        batch_size = batch.shape[0]
+        batch_size = batch[0].shape[0]
         cur_nimg = self.global_step * batch_size
 
         if self.ema_rampup is not None:
@@ -185,7 +185,7 @@ class StyleGAN2(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         if self.metrics:
-            batch_size = batch.size(0)
+            batch_size = batch[0].shape[0]
             z = torch.randn((batch_size, self.G.z_dim), device=self.device)
             indices = np.random.randint(self.training_set.get_len(), size=batch_size)
             c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)

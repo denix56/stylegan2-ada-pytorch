@@ -172,12 +172,10 @@ def training_loop(
     #     print('Constructing networks...')
     training_set_pl = StyleGANDataModule(batch_gpu, training_set_kwargs, data_loader_kwargs)
     training_set = training_set_pl.training_set
-    print(1)
 
     common_kwargs = dict(c_dim=training_set.label_dim, img_resolution=training_set.resolution, img_channels=training_set.num_channels)
     G = dnnlib.util.construct_class_by_name(**G_kwargs, **common_kwargs) # subclass of torch.nn.Module
     D = dnnlib.util.construct_class_by_name(**D_kwargs, **common_kwargs)# subclass of torch.nn.Module
-    print(2)
     # # Resume from existing pickle.
     # if (resume_pkl is not None) and (rank == 0):
     #     print(f'Resuming from "{resume_pkl}"')
@@ -222,7 +220,6 @@ def training_loop(
                          benchmark=cudnn_benchmark, max_steps=total_kimg//(batch_size)*1000,
                          plugins=[DDPPlugin(broadcast_buffers=False, find_unused_parameters=True)],
                          callbacks=[gpu_stats])
-    print(3)
     trainer.fit(net, datamodule=training_set_pl)
 
     # # Distribute across GPUs.
