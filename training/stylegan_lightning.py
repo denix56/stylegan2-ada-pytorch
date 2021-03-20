@@ -65,9 +65,11 @@ class StyleGAN2(pl.LightningModule):
         self.tick_start_time = 0
         self.start_time = 0
         self.tick_end_time = 0
+        self.cur_nimg = 0
 
     def on_fit_start(self):
         self.start_epoch = self.current_epoch
+        self.cur_nimg = self.global_step
         self.pl_mean = torch.zeros_like(self.pl_mean)
         for metric in self.metrics:
             metric.reset()
@@ -75,8 +77,7 @@ class StyleGAN2(pl.LightningModule):
         self.start_time = time.time()
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
-        cur_nimg = self.global_step * batch[0].shape[0]
-        if self.current_epoch == self.start_epoch and batch_idx > 0 or cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
+        if self.current_epoch == self.start_epoch and batch_idx > 0 or self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
             return -1
 
     def training_step(self, batch, batch_idx, optimizer_idx):
@@ -101,10 +102,10 @@ class StyleGAN2(pl.LightningModule):
         # Update G_ema.
         ema_nimg = self.ema_kimg * 1000
         batch_size = batch[0].shape[0]
-        cur_nimg = self.global_step * batch_size
+        self.cur_nimg = self.global_step * batch_size
 
         if self.ema_rampup is not None:
-            ema_nimg = min(ema_nimg, cur_nimg * self.ema_rampup)
+            ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
         ema_beta = 0.5 ** (batch_size / max(ema_nimg, 1e-8))
         for p_ema, p in zip(self.G_ema.parameters(), self.G.parameters()):
             p_ema.copy_(p.lerp(p_ema, ema_beta))
@@ -124,7 +125,6 @@ class StyleGAN2(pl.LightningModule):
 
     def on_train_epoch_end(self, outputs):
         self.tick_end_time = time.time()
-
         mean_values = {
             'total_sec': self.tick_end_time - self.start_time,
             'Timing/sec_per_tick': self.tick_end_time - self.tick_start_time,

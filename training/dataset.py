@@ -33,7 +33,6 @@ class Dataset(IterableDataset):
         xflip       = False,    # Artificially double the size of the dataset via x-flips. Applied after max_size.
         random_seed = 0,        # Random seed to use when applying max_size.
     ):
-        print(4)
         self._name = name
         self._raw_shape = list(raw_shape)
         self._use_labels = use_labels
@@ -59,7 +58,6 @@ class Dataset(IterableDataset):
         if xflip:
             self._raw_idx = np.tile(self._raw_idx, 2)
             self._xflip = np.concatenate([self._xflip, np.ones_like(self._xflip)])
-        print(5)
 
     def _get_raw_labels(self):
         if self._raw_labels is None:
