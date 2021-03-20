@@ -78,6 +78,7 @@ class StyleGAN2(pl.LightningModule):
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
         if self.current_epoch == self.start_epoch and batch_idx > 0 or self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
+            print(self.current_epoch, )
             return -1
 
     def training_step(self, batch, batch_idx, optimizer_idx):
@@ -102,7 +103,7 @@ class StyleGAN2(pl.LightningModule):
         # Update G_ema.
         ema_nimg = self.ema_kimg * 1000
         batch_size = batch[0].shape[0]
-        self.cur_nimg = self.global_step * batch_size
+        self.cur_nimg = (self.global_step + 1) * batch_size
 
         if self.ema_rampup is not None:
             ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
