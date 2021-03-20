@@ -82,6 +82,7 @@ class StyleGAN2(pl.LightningModule):
             return -1
 
     def training_step(self, batch, batch_idx, optimizer_idx):
+        print(batch_idx)
         imgs, labels, all_gen_z, all_gen_c = batch
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
@@ -126,7 +127,6 @@ class StyleGAN2(pl.LightningModule):
             self.log('Timing/maintenance_sec', self.tick_start_time - self.tick_end_time)
 
     def on_train_epoch_end(self, outputs):
-        print(self.cur_nimg, self.global_step, self.tick_start_nimg)
         self.tick_end_time = time.time()
         mean_values = {
             'total_sec': self.tick_end_time - self.start_time,
