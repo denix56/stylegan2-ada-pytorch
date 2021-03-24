@@ -15,7 +15,7 @@ import time
 import psutil
 import os
 from .utils import setup_snapshot_image_grid, save_image_grid
-from torchvision.utils import make_grid
+from torchvision.utils import make_grid, save_image
 
 class StyleGAN2(pl.LightningModule):
     def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, datamodule: StyleGANDataModule,
@@ -87,13 +87,14 @@ class StyleGAN2(pl.LightningModule):
             tensorboard = self.logger.experiment
 
             self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set, self.random_seed)
-            samples = make_grid(torch.tensor(images), nrow=self.grid_size[0], normalize=True, range=(0,255))
+            samples = make_grid(torch.tensor(images), nrow=self.grid_size[0], normalize=True, value_range=(0, 1))
+            save_image(samples, 'reals.jpg')
             tensorboard.add_image('Original', samples, global_step=self.global_step)
 
             self.grid_z = torch.randn([labels.shape[0], self.G.z_dim], device=self.device)
             self.grid_c = torch.from_numpy(labels).to(self.device)
             images = torch.cat([self.G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(self.grid_z, self.grid_c)])
-            images = make_grid(images, nrow=self.grid_size[0], normalize=True, range=(-1,1))
+            images = make_grid(images, nrow=self.grid_size[0], normalize=True, value_range=(-1,1))
             tensorboard.add_image('Generated', images, global_step=self.global_step)
 
 
