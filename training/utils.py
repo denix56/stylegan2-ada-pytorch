@@ -7,16 +7,18 @@ def setup_snapshot_image_grid(training_set, random_seed=0):
     gw = np.clip(7680 // training_set.image_shape[2], 7, 32)
     gh = np.clip(4320 // training_set.image_shape[1], 4, 32)
 
+    ds_len = training_set.get_len()
+
     # No labels => show random subset of training samples.
     if not training_set.has_labels:
-        all_indices = list(range(len(training_set)))
+        all_indices = np.arange(ds_len)
         rnd.shuffle(all_indices)
         grid_indices = [all_indices[i % len(all_indices)] for i in range(gw * gh)]
 
     else:
         # Group training samples by label.
         label_groups = dict() # label => [idx, ...]
-        for idx in range(len(training_set)):
+        for idx in range(ds_len):
             label = tuple(training_set.get_details(idx).raw_label.flat[::-1])
             if label not in label_groups:
                 label_groups[label] = []
