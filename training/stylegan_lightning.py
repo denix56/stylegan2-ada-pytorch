@@ -74,7 +74,7 @@ class StyleGAN2(pl.LightningModule):
         self.random_seed = random_seed
         self.accumulate_grad_batches = accumulate_grad_batches
 
-    def on_fit_start(self):
+    def setup(self, stage):
         self.start_epoch = self.current_epoch
         self.cur_nimg = self.global_step
         self.pl_mean = torch.zeros_like(self.pl_mean)
@@ -91,14 +91,11 @@ class StyleGAN2(pl.LightningModule):
             save_image(samples, 'reals.jpg')
             tensorboard.add_image('Original', samples, global_step=self.global_step)
 
-            print(self.device)
             self.grid_z = torch.randn([labels.shape[0], self.G.z_dim], device=self.device, dtype=torch.float)
             self.grid_c = torch.from_numpy(labels).to(self.device)
-            print(self.grid_z.shape, self.grid_z.dtype)
             images = torch.cat([self.G_ema(z=z[None, ...], c=c[None, ...]).cpu() for z, c in zip(self.grid_z, self.grid_c)])
             images = make_grid(images, nrow=self.grid_size[0], normalize=True, value_range=(-1,1))
             tensorboard.add_image('Generated', images, global_step=self.global_step)
-
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
         if self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
