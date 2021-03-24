@@ -418,7 +418,9 @@ class SynthesisBlock(torch.nn.Module):
             x = self.conv1(x, next(w_iter), fused_modconv=fused_modconv, gain=np.sqrt(0.5), **layer_kwargs)
             x = y.add_(x)
         else:
-            x = self.conv0(x, next(w_iter), fused_modconv=fused_modconv, **layer_kwargs)
+            ww = next(w_iter)
+            print(x, ww)
+            x = self.conv0(x, ww, fused_modconv=fused_modconv, **layer_kwargs)
             x = self.conv1(x, next(w_iter), fused_modconv=fused_modconv, **layer_kwargs)
 
         # ToRGB.
@@ -462,8 +464,6 @@ class SynthesisNetwork(torch.nn.Module):
 
         self.num_ws = 0
         for i, res in enumerate(self.block_resolutions):
-            # if i > 1:
-            #     break
             in_channels = channels_dict[res // 2] if res > 4 else 0
             out_channels = channels_dict[res]
             use_fp16 = (res >= fp16_resolution)
