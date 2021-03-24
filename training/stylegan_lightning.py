@@ -14,12 +14,14 @@ from .metric_utils_lightning import LogitSign
 import time
 import psutil
 import os
+from .utils import setup_snapshot_image_grid, save_image_grid
+from torchvision.utils import make_grid
 
 class StyleGAN2(pl.LightningModule):
     def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, datamodule: StyleGANDataModule,
                  style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2,
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, ada_target=None, ada_interval=4,
-                 ada_kimg = 500, metrics = None, kimg_per_tick = 4):
+                 ada_kimg = 500, metrics = None, kimg_per_tick = 4, image_snapshot_ticks = 50, random_seed=0):
         super().__init__()
         self.G = G
         self.D = D
@@ -67,6 +69,9 @@ class StyleGAN2(pl.LightningModule):
         self.tick_end_time = 0
         self.cur_nimg = 0
 
+        self.image_snapshot_ticks = image_snapshot_ticks
+        self.random_seed = random_seed
+
     def on_fit_start(self):
         self.start_epoch = self.current_epoch
         self.cur_nimg = self.global_step
@@ -76,6 +81,20 @@ class StyleGAN2(pl.LightningModule):
 
         self.start_time = time.time()
 
+        if self.trainer.is_global_zero:
+            tensorboard = self.logger.experiment
+
+            self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set)
+            samples = make_grid(torch.tensor(images), nrow=self.grid_size[0], normalize=True, range=(0,255))
+            tensorboard.add_image('Original', samples, global_step=self.global_step)
+
+            self.grid_z = torch.randn([labels.shape[0], self.G.z_dim], device=self.device)
+            self.grid_c = torch.from_numpy(labels).to(self.device)
+            images = torch.cat([self.G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(self.grid_z, self.grid_c)])
+            images = make_grid(images, nrow=self.grid_size[0], normalize=True, range=(-1,1))
+            tensorboard.add_image('Generated', images, global_step=self.global_step)
+
+
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
         if self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
             return -1
@@ -84,7 +103,6 @@ class StyleGAN2(pl.LightningModule):
         imgs, labels, all_gen_z, all_gen_c = batch
         phase = self.phases[optimizer_idx]
         loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
-        self.print(loss)
         return loss
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
@@ -118,7 +136,6 @@ class StyleGAN2(pl.LightningModule):
             logit_sign = self.logit_sign.compute()
             adjust = np.sign(logit_sign - self.ada_target) * (batch_size * self.ada_interval) / (self.ada_kimg * 1000)
             self.augment_pipe.p.copy_((self.augment_pipe.p + adjust).max(misc.constant(0, device=self.device)))
-        self.print('batch_end')
 
     def on_train_epoch_start(self):
         self.tick_start_nimg = self.cur_nimg
@@ -144,7 +161,13 @@ class StyleGAN2(pl.LightningModule):
 
         self.log_dict(mean_values)
         self.log_dict(sum_values, reduce_fx=torch.sum)
-        self.print('epoch end')
+
+        if self.current_epoch % self.image_snapshot_ticks == 0:
+            images = torch.cat([self.G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(self.grid_z, self.grid_c)])
+            images = make_grid(images, nrow=self.grid_size[0], normalize=True, range=(-1,1))
+
+            tensorboard = self.logger.experiment
+            tensorboard.add_image('Generated', images, global_step=self.global_step)
 
     def configure_optimizers(self):
         self.phases = []
