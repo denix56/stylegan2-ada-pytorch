@@ -95,7 +95,7 @@ class StyleGAN2(pl.LightningModule):
             self.grid_c = torch.from_numpy(labels).to(self.device)
             print(self.grid_z.shape, self.grid_z.dtype)
             print(self.G_ema)
-            images = torch.cat([self.G_ema(z=z[None, ...], c=c[None, ...], noise_mode='const').cpu() for z, c in zip(self.grid_z, self.grid_c)])
+            images = torch.cat([self.G_ema(z=z[None, ...], c=c[None, ...]).cpu() for z, c in zip(self.grid_z, self.grid_c)])
             images = make_grid(images, nrow=self.grid_size[0], normalize=True, value_range=(-1,1))
             tensorboard.add_image('Generated', images, global_step=self.global_step)
 
