@@ -21,7 +21,8 @@ class StyleGAN2(pl.LightningModule):
     def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, datamodule: StyleGANDataModule,
                  style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2,
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, ada_target=None, ada_interval=4,
-                 ada_kimg = 500, metrics = None, kimg_per_tick = 4, image_snapshot_ticks = 50, random_seed=0):
+                 ada_kimg = 500, metrics = None, kimg_per_tick = 4, image_snapshot_ticks = 50, random_seed=0,
+                 accumulate_grad_batches: int = 1):
         super().__init__()
         self.G = G
         self.D = D
@@ -71,6 +72,7 @@ class StyleGAN2(pl.LightningModule):
 
         self.image_snapshot_ticks = image_snapshot_ticks
         self.random_seed = random_seed
+        self.accumulate_grad_batches = accumulate_grad_batches
 
     def on_fit_start(self):
         self.start_epoch = self.current_epoch
@@ -84,7 +86,7 @@ class StyleGAN2(pl.LightningModule):
         if self.trainer.is_global_zero:
             tensorboard = self.logger.experiment
 
-            self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set)
+            self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set, self.random_seed)
             samples = make_grid(torch.tensor(images), nrow=self.grid_size[0], normalize=True, range=(0,255))
             tensorboard.add_image('Original', samples, global_step=self.global_step)
 
@@ -100,19 +102,21 @@ class StyleGAN2(pl.LightningModule):
             return -1
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, labels, all_gen_z, all_gen_c = batch
         phase = self.phases[optimizer_idx]
-        loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
-        return loss
+        if self.global_step % phase.interval == 0:
+            imgs, labels, all_gen_z, all_gen_c = batch
+            loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
+            return loss
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
                        on_tpu, using_native_amp, using_lbfgs):
-        phase = self.phases[optimizer_idx]
-        if self.global_step % phase.interval == 0:
+        if self.global_step % self.accumulate_grad_batches == 0:
+            phase = self.phases[optimizer_idx]
             for param in phase.module.parameters():
                 if param.grad is not None:
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
-        optimizer.step(closure=optimizer_closure)
+
+            optimizer.step(closure=optimizer_closure)
 
     def optimizer_zero_grad(self, epoch, batch_idx, optimizer, optimizer_idx):
         optimizer.zero_grad(set_to_none=True)
