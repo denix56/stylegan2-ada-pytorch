@@ -85,9 +85,9 @@ class StyleGAN2(pl.LightningModule):
 
         if self.trainer.is_global_zero:
             tensorboard = self.logger.experiment
-
             self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set, self.random_seed)
-            samples = make_grid(torch.tensor(images), nrow=self.grid_size[0], normalize=True, value_range=(0, 1))
+            print(torch.tensor(images, dtype=torch.float).shape)
+            samples = make_grid(torch.tensor(images, dtype=torch.float), nrow=self.grid_size[0], normalize=True, value_range=(0, 255))
             save_image(samples, 'reals.jpg')
             tensorboard.add_image('Original', samples, global_step=self.global_step)
 
