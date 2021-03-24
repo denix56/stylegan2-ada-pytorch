@@ -44,8 +44,6 @@ class Dataset(IterableDataset):
         self.num_workers = None
         self.rank = None
         self.window = None
-        self._stop = False
-        self.idx = 0
 
         # Apply max_size.
         self._raw_idx = np.arange(self._raw_shape[0], dtype=np.int64)
@@ -72,9 +70,6 @@ class Dataset(IterableDataset):
                 assert np.all(self._raw_labels >= 0)
         return self._raw_labels
 
-    def stop(self):
-        self._stop = True
-
     def close(self): # to be overridden by subclass
         pass
 
@@ -97,15 +92,18 @@ class Dataset(IterableDataset):
         return self._raw_idx.size
 
     def __iter__(self):
-        while not self._stop:
-            i = self.idx % self.order.size
-            if self.idx % self.num_workers == self.rank:
+        idx = 0
+        while True:
+            i = idx % self.order.size
+            if idx % self.num_workers == self.rank:
                 yield self._get_data(self.order[i])
             if self.window >= 2:
                 j = (i - self.rnd.randint(self.window)) % self.order.size
                 self.order[i], self.order[j] = self.order[j], self.order[i]
-            self.idx += 1
-        self._stop = False
+            idx += 1
+
+    def __getitem__(self, idx):
+        return self._get_data(idx)
 
     def _get_data(self, idx):
         image = self._load_raw_image(self._raw_idx[idx])
