@@ -75,6 +75,7 @@ class StyleGAN2(pl.LightningModule):
         self.accumulate_grad_batches = accumulate_grad_batches
 
     def setup(self, stage):
+        print(stage)
         self.start_epoch = self.current_epoch
         self.cur_nimg = self.global_step
         self.pl_mean = torch.zeros_like(self.pl_mean)
