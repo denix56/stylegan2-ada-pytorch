@@ -606,14 +606,14 @@ class DiscriminatorBlock(torch.nn.Module):
             x = x + y if x is not None else y
             img = upfirdn2d.downsample2d(img, self.resample_filter) if self.architecture == 'skip' else None
         # Main layers.
-        if self.architecture == 'resnet':
-            y = self.skip(x, gain=np.sqrt(0.5))
-            x = self.conv0(x)
-            x = self.conv1(x, gain=np.sqrt(0.5))
-            x = y.add_(x)
-        else:
-            x = self.conv0(x)
-            x = self.conv1(x)
+        # if self.architecture == 'resnet':
+        #     y = self.skip(x, gain=np.sqrt(0.5))
+        #     x = self.conv0(x)
+        #     x = self.conv1(x, gain=np.sqrt(0.5))
+        #     x = y.add_(x)
+        # else:
+        #     x = self.conv0(x)
+        #     x = self.conv1(x)
 
         assert x.dtype == dtype
         return x
