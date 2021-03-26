@@ -24,9 +24,9 @@ class StyleGAN2(pl.LightningModule):
                  ada_kimg = 500, metrics = None, kimg_per_tick = 4, image_snapshot_ticks = 50, random_seed=0,
                  accumulate_grad_batches: int = 1):
         super().__init__()
-        self.G = G
+        self.G = copy.deepcopy(D)
         self.D = D
-        self.G_ema = copy.deepcopy(self.G).eval().requires_grad_(False)
+        #self.G_ema = copy.deepcopy(self.G).eval().requires_grad_(False)
         self._G_opt_kwargs = G_opt_kwargs
         self._D_opt_kwargs = D_opt_kwargs
         self.augment_pipe = augment_pipe
@@ -74,28 +74,28 @@ class StyleGAN2(pl.LightningModule):
         self.random_seed = random_seed
         self.accumulate_grad_batches = accumulate_grad_batches
 
-    def on_train_start(self):
-        if self.trainer.is_global_zero:
-            tensorboard = self.logger.experiment
-            self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set, self.random_seed)
-
-            samples = make_grid(torch.tensor(images, dtype=torch.float), nrow=self.grid_size[0], normalize=True, value_range=(0, 255))
-            save_image(samples, 'reals.jpg')
-            tensorboard.add_image('Original', samples, global_step=self.global_step)
-            self.grid_z = torch.randn([labels.shape[0], self.G.z_dim], device=self.device)
-            self.grid_c = torch.from_numpy(labels).to(self.device)
-            images = torch.cat([self.G_ema(z=z[None, ...], c=c[None, ...]).cpu() for z, c in zip(self.grid_z, self.grid_c)])
-            images = make_grid(images, nrow=self.grid_size[0], normalize=True, value_range=(-1,1))
-            tensorboard.add_image('Generated', images, global_step=self.global_step)
-
-    def setup(self, stage):
-        self.start_epoch = self.current_epoch
-        self.cur_nimg = self.global_step
-        self.pl_mean = torch.zeros_like(self.pl_mean)
-        for metric in self.metrics:
-            metric.reset()
-
-        self.start_time = time.time()
+    # def on_train_start(self):
+    #     if self.trainer.is_global_zero:
+    #         tensorboard = self.logger.experiment
+    #         self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set, self.random_seed)
+    #
+    #         samples = make_grid(torch.tensor(images, dtype=torch.float), nrow=self.grid_size[0], normalize=True, value_range=(0, 255))
+    #         save_image(samples, 'reals.jpg')
+    #         tensorboard.add_image('Original', samples, global_step=self.global_step)
+    #         self.grid_z = torch.randn([labels.shape[0], self.G.z_dim], device=self.device)
+    #         self.grid_c = torch.from_numpy(labels).to(self.device)
+    #         images = torch.cat([self.G_ema(z=z[None, ...], c=c[None, ...]).cpu() for z, c in zip(self.grid_z, self.grid_c)])
+    #         images = make_grid(images, nrow=self.grid_size[0], normalize=True, value_range=(-1,1))
+    #         tensorboard.add_image('Generated', images, global_step=self.global_step)
+    #
+    # def setup(self, stage):
+    #     self.start_epoch = self.current_epoch
+    #     self.cur_nimg = self.global_step
+    #     self.pl_mean = torch.zeros_like(self.pl_mean)
+    #     for metric in self.metrics:
+    #         metric.reset()
+    #
+    #     self.start_time = time.time()
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
         if self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
@@ -127,13 +127,13 @@ class StyleGAN2(pl.LightningModule):
         batch_size = batch[0].shape[0]
         self.cur_nimg = (self.global_step + 1) * batch_size
 
-        if self.ema_rampup is not None:
-            ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
-        ema_beta = 0.5 ** (batch_size / max(ema_nimg, 1e-8))
-        for p_ema, p in zip(self.G_ema.parameters(), self.G.parameters()):
-            p_ema.copy_(p.lerp(p_ema, ema_beta))
-        for b_ema, b in zip(self.G_ema.buffers(), self.G.buffers()):
-            b_ema.copy_(b)
+        # if self.ema_rampup is not None:
+        #     ema_nimg = min(ema_nimg, self.cur_nimg * self.ema_rampup)
+        # ema_beta = 0.5 ** (batch_size / max(ema_nimg, 1e-8))
+        # for p_ema, p in zip(self.G_ema.parameters(), self.G.parameters()):
+        #     p_ema.copy_(p.lerp(p_ema, ema_beta))
+        # for b_ema, b in zip(self.G_ema.buffers(), self.G.buffers()):
+        #     b_ema.copy_(b)
 
         # Execute ADA heuristic.
         if self.augment_pipe is not None and self.ada_target is not None and (self.global_step % self.ada_interval == 0):
@@ -166,19 +166,19 @@ class StyleGAN2(pl.LightningModule):
         self.log_dict(mean_values)
         self.log_dict(sum_values, reduce_fx=torch.sum)
 
-        if self.current_epoch % self.image_snapshot_ticks == 0:
-            images = torch.cat([self.G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(self.grid_z, self.grid_c)])
-            images = make_grid(images, nrow=self.grid_size[0], normalize=True, range=(-1,1))
-
-            tensorboard = self.logger.experiment
-            tensorboard.add_image('Generated', images, global_step=self.global_step)
+        # if self.current_epoch % self.image_snapshot_ticks == 0:
+        #     images = torch.cat([self.G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(self.grid_z, self.grid_c)])
+        #     images = make_grid(images, nrow=self.grid_size[0], normalize=True, range=(-1,1))
+        #
+        #     tensorboard = self.logger.experiment
+        #     tensorboard.add_image('Generated', images, global_step=self.global_step)
 
     def configure_optimizers(self):
         self.phases = []
         opts = []
 
         for i, (name, module, opt_kwargs,
-                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self._gen_loss),
+                reg_interval, loss_) in enumerate([('G', self.G, self._G_opt_kwargs, self.G_reg_interval, self.tmp_loss),
                                                    ('D', self.D, self._D_opt_kwargs, self.D_reg_interval, self._disc_loss)
                                                    ]):
             if reg_interval is None:
@@ -203,33 +203,33 @@ class StyleGAN2(pl.LightningModule):
                 self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
                 opts.append(opt)
 
-        self.datamodule.setup_noise_params(len(self.phases), self.G.z_dim)
+        self.datamodule.setup_noise_params(len(self.phases), 128)
 
         return opts, []
 
-    def on_validation_start(self):
-        if self.metrics:
-            opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.datamodule.name,
-                                   device=self.device, G=self.G_ema)
-            for metric in self.metrics:
-                metric.prepare(opts)
-
-    def validation_step(self, batch, batch_idx):
-        if self.metrics:
-            batch_size = batch[0].shape[0]
-            z = torch.randn((batch_size, self.G.z_dim), device=self.device)
-            indices = np.random.randint(self.training_set.get_len(), size=batch_size)
-            c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)
-            for metric in self.metrics:
-                metric(batch, z, c)
-
-    def on_validation_end(self):
-        if self.metrics:
-            values = {}
-            for metric in self.metrics:
-                values[metric.name] = metric.compute()
-                metric.reset()
-            self.log_dict(values)
+    # def on_validation_start(self):
+    #     if self.metrics:
+    #         opts = dnnlib.EasyDict(trainer=self.trainer, dataset_name=self.self.datamodule.name,
+    #                                device=self.device, G=self.G_ema)
+    #         for metric in self.metrics:
+    #             metric.prepare(opts)
+    #
+    # def validation_step(self, batch, batch_idx):
+    #     if self.metrics:
+    #         batch_size = batch[0].shape[0]
+    #         z = torch.randn((batch_size, self.G.z_dim), device=self.device)
+    #         indices = np.random.randint(self.training_set.get_len(), size=batch_size)
+    #         c = torch.tensor([self.training_set.get_label(indices[i]) for i in range(batch_size)], device=self.device)
+    #         for metric in self.metrics:
+    #             metric(batch, z, c)
+    #
+    # def on_validation_end(self):
+    #     if self.metrics:
+    #         values = {}
+    #         for metric in self.metrics:
+    #             values[metric.name] = metric.compute()
+    #             metric.reset()
+    #         self.log_dict(values)
 
     def _gen_run(self, z: torch.Tensor, c: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         ws = self.G.mapping(z, c)
@@ -340,8 +340,8 @@ class StyleGAN2(pl.LightningModule):
         if do_main:
             values['Loss/D/loss'] = torch.zeros([], device=self.device)
         loss = self._disc_max_logits_r1_loss(real_img, real_c, gain, do_main=do_main, do_reg=do_reg, log_values=values)
-        if do_main:
-           loss += self._disc_main_loss(gen_z, gen_c, gain, log_values=values)
+        # if do_main:
+        #    loss += self._disc_main_loss(gen_z, gen_c, gain, log_values=values)
         self.log_dict(values)
         return loss
 
@@ -351,6 +351,12 @@ class StyleGAN2(pl.LightningModule):
                              torch.full_like(cutoff, ws.shape[1]))
         ws[:, cutoff:] = self.G.mapping(torch.randn_like(z), c, skip_w_avg_update=True)[:, cutoff:]
         return ws
+
+    def tmp_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
+                   gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
+        real_img_tmp = real_img
+        real_logits = self._disc_run(real_img_tmp, real_c)
+        return torch.mean(real_logits)
 
 
 
