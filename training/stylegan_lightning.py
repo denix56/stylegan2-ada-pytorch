@@ -75,10 +75,20 @@ class StyleGAN2(pl.LightningModule):
         self.accumulate_grad_batches = accumulate_grad_batches
 
     def on_train_start(self):
-        print(self.device)
+        if self.trainer.is_global_zero:
+            tensorboard = self.logger.experiment
+            self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set, self.random_seed)
+
+            samples = make_grid(torch.tensor(images, dtype=torch.float), nrow=self.grid_size[0], normalize=True, value_range=(0, 255))
+            save_image(samples, 'reals.jpg')
+            tensorboard.add_image('Original', samples, global_step=self.global_step)
+            self.grid_z = torch.randn([labels.shape[0], self.G.z_dim], device=self.device)
+            self.grid_c = torch.from_numpy(labels).to(self.device)
+            images = torch.cat([self.G_ema(z=z[None, ...], c=c[None, ...]).cpu() for z, c in zip(self.grid_z, self.grid_c)])
+            images = make_grid(images, nrow=self.grid_size[0], normalize=True, value_range=(-1,1))
+            tensorboard.add_image('Generated', images, global_step=self.global_step)
 
     def setup(self, stage):
-        print(stage)
         self.start_epoch = self.current_epoch
         self.cur_nimg = self.global_step
         self.pl_mean = torch.zeros_like(self.pl_mean)
@@ -86,20 +96,6 @@ class StyleGAN2(pl.LightningModule):
             metric.reset()
 
         self.start_time = time.time()
-
-        # if self.trainer.is_global_zero:
-        #     tensorboard = self.logger.experiment
-        #     self.grid_size, images, labels = setup_snapshot_image_grid(self.datamodule.training_set, self.random_seed)
-        #
-        #     samples = make_grid(torch.tensor(images, dtype=torch.float), nrow=self.grid_size[0], normalize=True, value_range=(0, 255))
-        #     save_image(samples, 'reals.jpg')
-        #     tensorboard.add_image('Original', samples, global_step=self.global_step)
-        #     print(self.device)
-        #     self.grid_z = torch.randn([labels.shape[0], self.G.z_dim], device=self.device)
-        #     self.grid_c = torch.from_numpy(labels).to(self.device)
-        #     images = torch.cat([self.G_ema(z=z[None, ...], c=c[None, ...]).cpu() for z, c in zip(self.grid_z, self.grid_c)])
-        #     images = make_grid(images, nrow=self.grid_size[0], normalize=True, value_range=(-1,1))
-        #     tensorboard.add_image('Generated', images, global_step=self.global_step)
 
     def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
         if self.cur_nimg >= self.tick_start_nimg + self.kimg_per_tick * 1000:
