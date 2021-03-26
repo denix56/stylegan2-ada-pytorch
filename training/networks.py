@@ -616,7 +616,7 @@ class DiscriminatorBlock(torch.nn.Module):
             x = self.conv1(x)
 
         assert x.dtype == dtype
-        return x, img
+        return x
 
 #----------------------------------------------------------------------------
 
@@ -739,7 +739,7 @@ class Discriminator(torch.nn.Module):
 
         common_kwargs = dict(img_channels=img_channels, architecture=architecture, conv_clamp=conv_clamp)
         cur_layer_idx = 0
-        for res in self.block_resolutions:
+        for res in self.block_resolutions[:1]:
             in_channels = channels_dict[res] if res < img_resolution else 0
             tmp_channels = channels_dict[res]
             out_channels = channels_dict[res // 2]
@@ -748,20 +748,20 @@ class Discriminator(torch.nn.Module):
                 first_layer_idx=cur_layer_idx, use_fp16=use_fp16, **block_kwargs, **common_kwargs)
             setattr(self, f'b{res}', block)
             cur_layer_idx += block.num_layers
-        if c_dim > 0:
-           self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
-        self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
+        # if c_dim > 0:
+        #    self.mapping = MappingNetwork(z_dim=0, c_dim=c_dim, w_dim=cmap_dim, num_ws=None, w_avg_beta=None, **mapping_kwargs)
+        # self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, **epilogue_kwargs, **common_kwargs)
 
     def forward(self, img, c, **block_kwargs):
         x = None
-        for res in self.block_resolutions:
+        for res in self.block_resolutions[:1]:
             block = getattr(self, f'b{res}')
-            x, img = block(x, img, **block_kwargs)
+            x = block(x, img, **block_kwargs)
 
-        cmap = None
-        if self.c_dim > 0:
-            cmap = self.mapping(None, c)
-        x = self.b4(x, img, cmap)
+        # cmap = None
+        # if self.c_dim > 0:
+        #     cmap = self.mapping(None, c)
+        # x = self.b4(x, img, cmap)
         return x
 
 #----------------------------------------------------------------------------
