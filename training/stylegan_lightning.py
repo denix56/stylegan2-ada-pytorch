@@ -335,6 +335,9 @@ class StyleGAN2(pl.LightningModule):
 
     def _disc_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
+        real_img_tmp = real_img
+        real_logits = self.D(real_img_tmp, real_c)
+        return torch.mean(real_logits)
         do_reg = do_reg and self.r1_gamma != 0
         values = {}
         if do_main:
@@ -355,7 +358,7 @@ class StyleGAN2(pl.LightningModule):
     def tmp_loss(self, real_img: torch.Tensor, real_c: torch.Tensor, gen_z: torch.Tensor, gen_c: torch.Tensor,
                    gain: int, do_main: bool, do_reg: bool) -> torch.Tensor:
         real_img_tmp = real_img
-        real_logits = self._disc_run(real_img_tmp, real_c)
+        real_logits = self.G(real_img_tmp, real_c)
         return torch.mean(real_logits)
 
 
