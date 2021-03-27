@@ -104,6 +104,7 @@ class StyleGAN2(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         phase = self.phases[optimizer_idx]
         if self.global_step % phase.interval == 0:
+            print(phase.module.requires_grad)
             imgs, labels, all_gen_z, all_gen_c = batch
             loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
             return loss
