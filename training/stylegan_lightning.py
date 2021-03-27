@@ -136,6 +136,7 @@ class StyleGAN2(pl.LightningModule):
 
         # Iterate over all optimizer parameters to preserve their `requires_grad` information
         # in case these are pre-defined during `configure_optimizers`
+        self.print('toggle', optimizer_idx)
         param_requires_grad_state = {}
         for opt in self.optimizers(use_pl_optimizer=False):
             for group in opt.param_groups:
@@ -151,10 +152,11 @@ class StyleGAN2(pl.LightningModule):
         for group in optimizer.param_groups:
             for param in group['params']:
                 param.requires_grad = param_requires_grad_state[param]
-                self.print(param_requires_grad_state[param])
+                #self.print(param_requires_grad_state[param])
         self._param_requires_grad_state = param_requires_grad_state
 
     def untoggle_optimizer(self, optimizer_idx: int):
+        self.print('untoggle', optimizer_idx)
         """
         .. note:: Only called when using multiple optimizers
         Override for your own behavior
@@ -167,7 +169,7 @@ class StyleGAN2(pl.LightningModule):
                     for param in group['params']:
                         if param in self._param_requires_grad_state:
                             param.requires_grad = self._param_requires_grad_state[param]
-                            self.print('other', self._param_requires_grad_state[param])
+                            #self.print('other', self._param_requires_grad_state[param])
         # save memory
         self._param_requires_grad_state = dict()
 
