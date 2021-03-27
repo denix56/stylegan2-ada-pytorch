@@ -100,21 +100,27 @@ class StyleGAN2(pl.LightningModule):
             return -1
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        phase = self.phases[optimizer_idx]
-        if self.global_step % phase.interval == 0:
-            imgs, labels, all_gen_z, all_gen_c = batch
-            loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
-            self.print(loss, loss.requires_grad, phase.module.__class__.__name__)
-            # for param in phase.module.parameters():
-            #     print(param.requires_grad)
-            return loss
+        total_loss = None
+        phase_set = self.phases[optimizer_idx]
+        for phase in phase_set:
+            if self.global_step % phase.interval == 0:
+                imgs, labels, all_gen_z, all_gen_c = batch
+                loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
+                if total_loss is None:
+                    total_loss = loss
+                else:
+                    total_loss += loss
+                # for param in phase.module.parameters():
+                #     print(param.requires_grad)
+        return total_loss
 
     def backward(self, loss, optimizer, optimizer_idx, *args, **kwargs):
         super().backward(loss, optimizer, optimizer_idx, *args, **kwargs)
-        # phase = self.phases[optimizer_idx]
-        # for param in phase.module.parameters():
-        #     if param.grad is not None:
-        #         misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
+        phase_set = self.phases[optimizer_idx]
+        for phase in phase_set:
+            for param in phase.module.parameters():
+                if param.grad is not None:
+                    misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
 
     def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         # Update G_ema.
@@ -180,7 +186,7 @@ class StyleGAN2(pl.LightningModule):
                 opt = dnnlib.util.construct_class_by_name(params=module.parameters(),
                                                           **opt_kwargs)  # subclass of torch.optim.Optimizer
                 loss = partial(loss_, do_main=True, do_reg=True, gain=1)
-                self.phases += [dnnlib.EasyDict(name=name + 'both', module=module, opt=i, interval=1, loss=loss)]
+                self.phases += [[dnnlib.EasyDict(name=name + 'both', module=module, opt=i, interval=1, loss=loss)]]
                 opts.append(opt)
             else:  # Lazy regularization.
                 mb_ratio = reg_interval / (reg_interval + 1)
@@ -189,11 +195,11 @@ class StyleGAN2(pl.LightningModule):
                 opt_kwargs.betas = [beta ** mb_ratio for beta in opt_kwargs.betas]
                 opt = dnnlib.util.construct_class_by_name(module.parameters(),
                                                           **opt_kwargs)  # subclass of torch.optim.Optimizer
-                loss = partial(loss_, do_main=True, do_reg=False, gain=1)
-                self.phases += [dnnlib.EasyDict(name=name + 'main', module=module, interval=1, loss=loss)]
-                opts.append(opt)
-                loss = partial(loss_, do_main=False, do_reg=True, gain=reg_interval)
-                self.phases += [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval, loss=loss)]
+                loss1 = partial(loss_, do_main=True, do_reg=False, gain=1)
+                loss2 = partial(loss_, do_main=False, do_reg=True, gain=reg_interval)
+                self.phases += [[dnnlib.EasyDict(name=name + 'main', module=module, interval=1, loss=loss1)],
+                               [dnnlib.EasyDict(name=name + 'reg', module=module, interval=reg_interval,
+                                                loss=loss2)]]
                 opts.append(opt)
 
         self.datamodule.setup_noise_params(len(self.phases), self.G.z_dim)
