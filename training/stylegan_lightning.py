@@ -110,7 +110,7 @@ class StyleGAN2(pl.LightningModule):
             # for param in phase.module.parameters():
             #     print(param.requires_grad)
             return loss
-        self.print('skip')
+        self.print('SKIP')
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
                        on_tpu, using_native_amp, using_lbfgs):
