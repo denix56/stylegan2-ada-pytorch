@@ -326,11 +326,15 @@ class StyleGAN2(pl.LightningModule):
         do_reg = do_reg and self.pl_weight != 0
         if do_main:
             loss = self._gen_main_loss(gen_z, gen_c, gain)
+            self.print('main')
             if do_reg:
                 loss += self._gen_pl_loss(gen_z, gen_c, gain)
+                self.print('reg')
         elif do_reg:
             loss = self._gen_pl_loss(gen_z, gen_c, gain)
+            self.print('reg only')
         if loss is None:
+            self.print('none')
             loss = torch.zeros(1, device=self.device)
         return loss
 
