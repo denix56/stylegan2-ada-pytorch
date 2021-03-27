@@ -111,10 +111,10 @@ class StyleGAN2(pl.LightningModule):
 
     def backward(self, loss, optimizer, optimizer_idx, *args, **kwargs):
         super().backward(loss, optimizer, optimizer_idx, *args, **kwargs)
-        phase = self.phases[optimizer_idx]
-        for param in phase.module.parameters():
-            if param.grad is not None:
-                misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
+        # phase = self.phases[optimizer_idx]
+        # for param in phase.module.parameters():
+        #     if param.grad is not None:
+        #         misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
 
     def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         # Update G_ema.
