@@ -153,6 +153,23 @@ class StyleGAN2(pl.LightningModule):
                 self.print(param_requires_grad_state[param])
         self._param_requires_grad_state = param_requires_grad_state
 
+    def untoggle_optimizer(self, optimizer_idx: int):
+        """
+        .. note:: Only called when using multiple optimizers
+        Override for your own behavior
+        Args:
+            optimizer_idx: Current optimizer idx in training_loop
+        """
+        for opt_idx, opt in enumerate(self.optimizers(use_pl_optimizer=False)):
+            if optimizer_idx != opt_idx:
+                for group in opt.param_groups:
+                    for param in group['params']:
+                        if param in self._param_requires_grad_state:
+                            param.requires_grad = self._param_requires_grad_state[param]
+                            self.print('other', self._param_requires_grad_state[param])
+        # save memory
+        self._param_requires_grad_state = dict()
+
     def optimizer_zero_grad(self, epoch, batch_idx, optimizer, optimizer_idx):
         optimizer.zero_grad(set_to_none=True)
 
