@@ -150,7 +150,7 @@ class StyleGAN2(pl.LightningModule):
         for group in optimizer.param_groups:
             for param in group['params']:
                 param.requires_grad = param_requires_grad_state[param]
-                print(param_requires_grad_state[param])
+                self.print(param_requires_grad_state[param])
         self._param_requires_grad_state = param_requires_grad_state
 
     def optimizer_zero_grad(self, epoch, batch_idx, optimizer, optimizer_idx):
