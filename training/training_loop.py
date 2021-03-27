@@ -144,7 +144,7 @@ def training_loop(
                     datamodule=training_set_pl, G_reg_interval=G_reg_interval,
                     D_reg_interval=D_reg_interval, ema_kimg=ema_kimg, ema_rampup=ema_rampup,
                     ada_target=ada_target, ada_interval=ada_interval, ada_kimg=ada_kimg, metrics=[fid50k],
-                    kimg_per_tick=kimg_per_tick, random_seed=random_seed, accumulate_grad_batches=num_gpus, **loss_kwargs)
+                    kimg_per_tick=kimg_per_tick, random_seed=random_seed, **loss_kwargs)
 
     trainer = pl.Trainer(gpus=num_gpus, accelerator='ddp', weights_summary='full', fast_dev_run=10,
                          benchmark=cudnn_benchmark, max_steps=total_kimg//(batch_size)*1000,
