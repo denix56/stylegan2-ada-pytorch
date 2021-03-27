@@ -259,6 +259,7 @@ class StyleGAN2(pl.LightningModule):
     def _gen_pl_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
         batch_size = gen_z.shape[0] // self.pl_batch_shrink
         gen_img, gen_ws = self._gen_run(gen_z[:batch_size], gen_c[:batch_size])
+        print(gen_ws.requires_grad)
         pl_noise = torch.randn_like(gen_img) / np.sqrt(gen_img.shape[2] * gen_img.shape[3])
         with conv2d_gradfix.no_weight_gradients():
             pl_grads = torch.autograd.grad(outputs=[(gen_img * pl_noise).sum()], inputs=[gen_ws], create_graph=True,
