@@ -21,8 +21,7 @@ class StyleGAN2(pl.LightningModule):
     def __init__(self, G, D, G_opt_kwargs, D_opt_kwargs, augment_pipe, datamodule: StyleGANDataModule,
                  style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=2, pl_decay=0.01, pl_weight=2,
                  G_reg_interval=4, D_reg_interval=16, ema_kimg=10, ema_rampup=None, ada_target=None, ada_interval=4,
-                 ada_kimg = 500, metrics = None, kimg_per_tick = 4, image_snapshot_ticks = 50, random_seed=0,
-                 accumulate_grad_batches: int = 1):
+                 ada_kimg = 500, metrics = None, kimg_per_tick = 4, image_snapshot_ticks = 50, random_seed=0):
         super().__init__()
         self.G = G
         self.D = D
@@ -72,7 +71,6 @@ class StyleGAN2(pl.LightningModule):
 
         self.image_snapshot_ticks = image_snapshot_ticks
         self.random_seed = random_seed
-        self.accumulate_grad_batches = accumulate_grad_batches
 
     def on_train_start(self):
         if self.trainer.is_global_zero:
@@ -110,17 +108,13 @@ class StyleGAN2(pl.LightningModule):
             # for param in phase.module.parameters():
             #     print(param.requires_grad)
             return loss
-        self.print('SKIP')
 
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
-                       on_tpu, using_native_amp, using_lbfgs):
-        if self.global_step % self.accumulate_grad_batches == 0:
-            phase = self.phases[optimizer_idx]
-            for param in phase.module.parameters():
-                if param.grad is not None:
-                    misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
-
-            optimizer.step(closure=optimizer_closure)
+    def backward(self, loss, optimizer, optimizer_idx, *args, **kwargs):
+        super().backward(loss, optimizer, optimizer_idx, *args, **kwargs)
+        phase = self.phases[optimizer_idx]
+        for param in phase.module.parameters():
+            if param.grad is not None:
+                misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
 
     def toggle_optimizer(self, optimizer, optimizer_idx):
         """
