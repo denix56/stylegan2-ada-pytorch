@@ -107,8 +107,8 @@ class StyleGAN2(pl.LightningModule):
             imgs, labels, all_gen_z, all_gen_c = batch
             loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
             self.print(loss, loss.requires_grad, phase.module.__class__.__name__)
-            for param in phase.module.parameters():
-                print(param.requires_grad)
+            # for param in phase.module.parameters():
+            #     print(param.requires_grad)
             return loss
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
@@ -120,6 +120,38 @@ class StyleGAN2(pl.LightningModule):
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
 
             optimizer.step(closure=optimizer_closure)
+
+    def toggle_optimizer(self, optimizer, optimizer_idx):
+        """
+        Makes sure only the gradients of the current optimizer's parameters are calculated
+        in the training step to prevent dangling gradients in multiple-optimizer setup.
+        .. note:: Only called when using multiple optimizers
+        Override for your own behavior
+        It works with ``untoggle_optimizer`` to make sure param_requires_grad_state is properly reset.
+        Args:
+            optimizer: Current optimizer used in training_loop
+            optimizer_idx: Current optimizer idx in training_loop
+        """
+
+        # Iterate over all optimizer parameters to preserve their `requires_grad` information
+        # in case these are pre-defined during `configure_optimizers`
+        param_requires_grad_state = {}
+        for opt in self.optimizers(use_pl_optimizer=False):
+            for group in opt.param_groups:
+                for param in group['params']:
+                    # If a param already appear in param_requires_grad_state, continue
+                    if param in param_requires_grad_state:
+                        continue
+                    param_requires_grad_state[param] = param.requires_grad
+                    param.requires_grad = False
+
+        # Then iterate over the current optimizer's parameters and set its `requires_grad`
+        # properties accordingly
+        for group in optimizer.param_groups:
+            for param in group['params']:
+                param.requires_grad = param_requires_grad_state[param]
+                print(param_requires_grad_state[param])
+        self._param_requires_grad_state = param_requires_grad_state
 
     def optimizer_zero_grad(self, epoch, batch_idx, optimizer, optimizer_idx):
         optimizer.zero_grad(set_to_none=True)
