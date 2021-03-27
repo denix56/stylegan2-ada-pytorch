@@ -121,6 +121,14 @@ class StyleGAN2(pl.LightningModule):
                 if param.grad is not None:
                     misc.nan_to_num(param.grad, nan=0, posinf=1e5, neginf=-1e5, out=param.grad)
 
+    def toggle_optimizer(self, optimizer, optimizer_idx):
+        print('toggle', optimizer_idx)
+        super().toggle_optimizer(optimizer, optimizer_idx)
+
+    def untoggle_optimizer(self, optimizer_idx):
+        print('untoggle', optimizer_idx)
+        super().untoggle_optimizer(optimizer_idx)
+
     def on_train_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         # Update G_ema.
         ema_nimg = self.ema_kimg * 1000
