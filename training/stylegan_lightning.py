@@ -106,7 +106,7 @@ class StyleGAN2(pl.LightningModule):
         if self.global_step % phase.interval == 0:
             imgs, labels, all_gen_z, all_gen_c = batch
             loss = phase.loss(imgs, labels, all_gen_z[optimizer_idx], all_gen_c[optimizer_idx])
-            self.print(loss, loss.requires_grad, phase.module)
+            self.print(loss, loss.requires_grad, phase.module.__class__.__name__)
             return loss
 
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, optimizer_closure,
@@ -247,7 +247,9 @@ class StyleGAN2(pl.LightningModule):
 
     def _gen_main_loss(self, gen_z: torch.Tensor, gen_c: torch.Tensor, gain: int) -> torch.Tensor:
             gen_img, _gen_ws = self._gen_run(gen_z, gen_c)
+            self.print(gen_img.requires_grad)
             gen_logits = self._disc_run(gen_img, gen_c)
+            self.print(gen_logits.requires_grad)
             loss_Gmain = F.softplus(-gen_logits)  # -log(sigmoid(gen_logits))
             loss_Gmain = loss_Gmain.mean()
             values = {'Loss/scores/fake': gen_logits.mean(),
